@@ -53,23 +53,18 @@ void client(){
     char buf[1024] = { 0 };
     int s, clnt, bytes_read;
     socklen_t opt = sizeof(rem_addr);
-
     // allocate socket
     s = socket(AF_BLUETOOTH, SOCK_STREAM, BTPROTO_RFCOMM);
-
     // bind socket to port 1 of the first available 
     // local bluetooth adapter
     loc_addr.rc_family = AF_BLUETOOTH;
     loc_addr.rc_bdaddr = *BDADDR_ANY;
     loc_addr.rc_channel = (uint8_t) 1;
-    bind(s, (struct sockaddr *)&loc_addr, sizeof(loc_addr));
-
-    // put socket into listening mode
+    bind(s, (struct sockaddr*)&loc_addr, sizeof(loc_addr));
+    // put socket in listening mode
     listen(s, 1);
-
     // accept one connection
     clnt = accept(s, (struct sockaddr *)&rem_addr, &opt);
-
     ba2str( &rem_addr.rc_bdaddr, buf );
     fprintf(stderr, "accepted connection from %s\n", buf);
     memset(buf, 0, sizeof(buf));
@@ -100,16 +95,12 @@ int main(int argc, char **argv){
             bdaddr_t* bd = get_bdaddr(argv[1], &dname, &mac);
             if(!bd)return 1;
             struct sockaddr_rc addr = { 0 };
-            /*char dest[18] = "01:23:45:67:89:AB";*/
-
             // allocate a socket
             s = socket(AF_BLUETOOTH, SOCK_STREAM, BTPROTO_RFCOMM);
-
             // set the connection parameters (who to connect to)
             addr.rc_family = AF_BLUETOOTH;
             addr.rc_channel = (uint8_t) 1;
             addr.rc_bdaddr = *bd;
-            /*str2ba( dest, &addr.rc_bdaddr );*/
             // connect to server
             printf("attempting to connect to %s\n", dname);
             status = connect(s, (struct sockaddr *)&addr, sizeof(addr));
