@@ -59,7 +59,7 @@ void client(){
     // local bluetooth adapter
     loc_addr.rc_family = AF_BLUETOOTH;
     loc_addr.rc_bdaddr = *BDADDR_ANY;
-    loc_addr.rc_channel = (uint8_t) 1;
+    loc_addr.rc_channel = (uint8_t)1;
     bind(s, (struct sockaddr*)&loc_addr, sizeof(loc_addr));
     // put socket in listening mode
     listen(s, 1);
@@ -68,64 +68,78 @@ void client(){
     ba2str( &rem_addr.rc_bdaddr, buf );
     fprintf(stderr, "accepted connection from %s\n", buf);
     memset(buf, 0, sizeof(buf));
-
     // read data from the client
-    while(getchar() != 'q'){ 
+    // make a spearate function rw_loop that takes in an int for client/server number
+    // and keeps reading and writing to the server 
+    // this can be used in both client and server
+    while(1){ 
           bytes_read = read(clnt, buf, sizeof(buf));
-          if( bytes_read > 0 ) {
-              printf("partner: %s\n", buf);
-          }
+          if(bytes_read > 0)printf("partner: %s\n", buf);
+          // TODO: client should be able to send messages
+          /*
+           *write(clnt, "msg", 4);
+           *puts("sent msg to partner");
+           */
     }
     // close connection
     close(clnt);
     close(s);
 }
 
+int bind_to_server(bdaddr_t* bd, char* dname, char* mac){
+      int status = 0, s;
+      #ifndef TEST
+      if(!bd)return 1;
+      struct sockaddr_rc addr = { 0 };
+      // allocate a socket
+      s = socket(AF_BLUETOOTH, SOCK_STREAM, BTPROTO_RFCOMM);
+      // set the connection parameters (who to connect to)
+      addr.rc_family = AF_BLUETOOTH;
+      addr.rc_channel = (uint8_t) 1;
+      addr.rc_bdaddr = *bd;
+      // connect to server
+      printf("attempting to connect to %s\n", dname);
+      status = connect(s, (struct sockaddr *)&addr, sizeof(addr));
+      printf("received status %i\n", status);
+      // send a message
+      #endif
+      if( status == 0 ) {
+            puts("ready to send messages");
+            while(1){
+                  char* msg = NULL;
+                  size_t sz = 0;
+                  unsigned int sl = getline(&msg, &sz, stdin);
+                  if(msg[sl-1] == '\n')msg[--sl] = 0;
+                  if(sl == 1 && *msg == 'q')break;
+                  #ifndef TEST
+                  status = write(s, msg, sz);
+                  printf("sent message \"%s\" to %s@%s\n", msg, dname, mac);
+                  #else
+                  printf("%s\n", msg);
+                  #endif
+            }
+      }
+      else perror("uh oh");
+      #ifndef TEST
+      close(s);
+      #endif
+      return 0;
+}
+
+// TODO: connect to multiple hosts at once
 int main(int argc, char **argv){
       if(argc < 2){
             puts("enter mode or search string");
             return 1;
       }
-      if(strncmp(argv[1], "-c", 3) == 0)client();
+      // TODO: should client mode be renamed to server mode?
+      if(strncmp(argv[1], "-c", 3) == 0){
+            puts("starting blech in client mode");
+            client();
+      }
       else{
-            int status = 0;
-            #ifndef TEST
-            int s;
             char* dname; char* mac;
             bdaddr_t* bd = get_bdaddr(argv[1], &dname, &mac);
-            if(!bd)return 1;
-            struct sockaddr_rc addr = { 0 };
-            // allocate a socket
-            s = socket(AF_BLUETOOTH, SOCK_STREAM, BTPROTO_RFCOMM);
-            // set the connection parameters (who to connect to)
-            addr.rc_family = AF_BLUETOOTH;
-            addr.rc_channel = (uint8_t) 1;
-            addr.rc_bdaddr = *bd;
-            // connect to server
-            printf("attempting to connect to %s\n", dname);
-            status = connect(s, (struct sockaddr *)&addr, sizeof(addr));
-            printf("received status %i\n", status);
-            // send a message
-            #endif
-            if( status == 0 ) {
-                  puts("ready to send messages");
-                  while(1){
-                        char* msg = NULL;
-                        size_t sz = 0;
-                        unsigned int sl = getline(&msg, &sz, stdin);
-                        if(msg[sl-1] == '\n')msg[--sl] = 0;
-                        if(sl == 1 && *msg == 'q')break;
-                        #ifndef TEST
-                        status = write(s, msg, sz);
-                        printf("sent message \"%s\" to %s@%s\n", msg, dname, mac);
-                        #else
-                        printf("%s\n", msg);
-                        #endif
-                  }
-            }
-            else perror("uh oh");
-            #ifndef TEST
-            close(s);
-            #endif
+            return bind_to_server(bd, dname, mac);
       }
 }
