@@ -35,8 +35,8 @@ bdaddr_t* get_bdaddr(char* d_name, char** m_name, char** m_addr){
             ba2str(&(ii+i)->bdaddr, addr);
             memset(name, 0, sizeof(name));
             if(hci_read_remote_name(sock, &(ii+i)->bdaddr, sizeof(name), name, 0) < 0)
-            strcpy(name, "[unknown]");
-                  if(strcasestr(name, d_name)){
+                  strcpy(name, "[unknown]");
+            if(strcasestr(name, d_name)){
                   printf("found a match: %s  %s\n", addr, name);
                   if(m_name)*m_name = strdup(name);
                   if(m_addr)*m_addr = strdup(addr);
@@ -49,41 +49,41 @@ bdaddr_t* get_bdaddr(char* d_name, char** m_name, char** m_addr){
 }
 
 void client(){
-    struct sockaddr_rc loc_addr = { 0 }, rem_addr = { 0 };
-    char buf[1024] = { 0 };
-    int s, clnt, bytes_read;
-    socklen_t opt = sizeof(rem_addr);
-    // allocate socket
-    s = socket(AF_BLUETOOTH, SOCK_STREAM, BTPROTO_RFCOMM);
-    // bind socket to port 1 of the first available 
-    // local bluetooth adapter
-    loc_addr.rc_family = AF_BLUETOOTH;
-    loc_addr.rc_bdaddr = *BDADDR_ANY;
-    loc_addr.rc_channel = (uint8_t)1;
-    bind(s, (struct sockaddr*)&loc_addr, sizeof(loc_addr));
-    // put socket in listening mode
-    listen(s, 1);
-    // accept one connection
-    clnt = accept(s, (struct sockaddr *)&rem_addr, &opt);
-    ba2str( &rem_addr.rc_bdaddr, buf );
-    fprintf(stderr, "accepted connection from %s\n", buf);
-    memset(buf, 0, sizeof(buf));
-    // read data from the client
-    // make a spearate function rw_loop that takes in an int for client/server number
-    // and keeps reading and writing to the server 
-    // this can be used in both client and server
-    while(1){ 
-          bytes_read = read(clnt, buf, sizeof(buf));
-          if(bytes_read > 0)printf("partner: %s\n", buf);
-          // TODO: client should be able to send messages
-          /*
-           *write(clnt, "msg", 4);
-           *puts("sent msg to partner");
-           */
-    }
-    // close connection
-    close(clnt);
-    close(s);
+      struct sockaddr_rc loc_addr = { 0 }, rem_addr = { 0 };
+      char buf[1024] = { 0 };
+      int s, clnt, bytes_read;
+      socklen_t opt = sizeof(rem_addr);
+      // allocate socket
+      s = socket(AF_BLUETOOTH, SOCK_STREAM, BTPROTO_RFCOMM);
+      // bind socket to port 1 of the first available 
+      // local bluetooth adapter
+      loc_addr.rc_family = AF_BLUETOOTH;
+      loc_addr.rc_bdaddr = *BDADDR_ANY;
+      loc_addr.rc_channel = (uint8_t)1;
+      bind(s, (struct sockaddr*)&loc_addr, sizeof(loc_addr));
+      // put socket in listening mode
+      listen(s, 1);
+      // accept one connection
+      clnt = accept(s, (struct sockaddr *)&rem_addr, &opt);
+      ba2str( &rem_addr.rc_bdaddr, buf );
+      fprintf(stderr, "accepted connection from %s\n", buf);
+      memset(buf, 0, sizeof(buf));
+      // read data from the client
+      // make a spearate function rw_loop that takes in an int for client/server number
+      // and keeps reading and writing to the server 
+      // this can be used in both client and server
+      while(1){ 
+            bytes_read = read(clnt, buf, sizeof(buf));
+            if(bytes_read > 0)printf("partner: %s\n", buf);
+            // TODO: client should be able to send messages
+            /*
+            *write(clnt, "msg", 4);
+            *puts("sent msg to partner");
+            */
+      }
+      // close connection
+      close(clnt);
+      close(s);
 }
 
 int bind_to_server(bdaddr_t* bd, char* dname, char* mac){
@@ -103,7 +103,7 @@ int bind_to_server(bdaddr_t* bd, char* dname, char* mac){
       printf("received status %i\n", status);
       // send a message
       #endif
-      if( status == 0 ) {
+      if(status == 0){
             puts("ready to send messages");
             while(1){
                   char* msg = NULL;
