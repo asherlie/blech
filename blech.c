@@ -48,7 +48,7 @@ bdaddr_t* get_bdaddr(char* d_name, char** m_name, char** m_addr){
       return NULL;
 }
 
-void client(){
+void server(){
       struct sockaddr_rc loc_addr = { 0 }, rem_addr = { 0 };
       char buf[1024] = { 0 };
       int s, clnt, bytes_read;
@@ -142,6 +142,6 @@ int main(int argc, char** argv){
             }
       }
       puts("no target user provided or search string not found. starting server mode");
-      client();
+      server();
       return 0;
 }
