@@ -29,7 +29,7 @@ bdaddr_t* get_bdaddr(char* d_name, char** m_name, char** m_addr){
       flags = IREQ_CACHE_FLUSH;
       ii = (inquiry_info*)malloc(max_rsp*sizeof(inquiry_info));
       num_rsp = hci_inquiry(dev_id, len, max_rsp, NULL, &ii, flags);
-      printf("%i devices found\n", num_rsp);
+      /*printf("%i devices found\n", num_rsp);*/
       if(num_rsp < 0)perror("hci_inquiry");
       for(int i = 0; i < num_rsp; ++i){
             ba2str(&(ii+i)->bdaddr, addr);
@@ -37,7 +37,7 @@ bdaddr_t* get_bdaddr(char* d_name, char** m_name, char** m_addr){
             if(hci_read_remote_name(sock, &(ii+i)->bdaddr, sizeof(name), name, 0) < 0)
                   strcpy(name, "[unknown]");
             if(strcasestr(name, d_name)){
-                  printf("found a match: %s  %s\n", addr, name);
+                  /*printf("found a match: %s  %s\n", addr, name);*/
                   if(m_name)*m_name = strdup(name);
                   if(m_addr)*m_addr = strdup(addr);
                   return &(ii+i)->bdaddr;
@@ -64,8 +64,9 @@ void client(){
       // put socket in listening mode
       listen(s, 1);
       // accept one connection
+      puts("ready for connection");
       clnt = accept(s, (struct sockaddr *)&rem_addr, &opt);
-      ba2str( &rem_addr.rc_bdaddr, buf );
+      ba2str(&rem_addr.rc_bdaddr, buf);
       fprintf(stderr, "accepted connection from %s\n", buf);
       memset(buf, 0, sizeof(buf));
       // read data from the client
@@ -127,19 +128,20 @@ int bind_to_server(bdaddr_t* bd, char* dname, char* mac){
 }
 
 // TODO: connect to multiple hosts at once
-int main(int argc, char **argv){
-      if(argc < 2){
-            puts("enter mode or search string");
-            return 1;
-      }
-      // TODO: should client mode be renamed to server mode?
-      if(strncmp(argv[1], "-c", 3) == 0){
-            puts("starting blech in client mode");
-            client();
-      }
-      else{
+// a thread should be periodically sending their list of partners to their list of partners
+// blech starts in user mode unless a server search string isn't provided 
+// or the provided server search string is invalid
+int main(int argc, char** argv){
+      if(argc >= 2){
             char* dname; char* mac;
+            printf("attempting to bind to server matching search string: %s\n", argv[1]);
             bdaddr_t* bd = get_bdaddr(argv[1], &dname, &mac);
-            return bind_to_server(bd, dname, mac);
+            if(bd){
+                  printf("attempting to connect to server: %s\n", dname);
+                  return bind_to_server(bd, dname, mac);
+            }
       }
+      puts("no target user provided or search string not found. starting server mode");
+      client();
+      return 0;
 }
