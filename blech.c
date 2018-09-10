@@ -141,7 +141,7 @@ void accept_connections_pth(struct a_c_arg* arg){
 
 void server(){
       struct sockaddr_rc loc_addr = { 0 }, rem_addr = { 0 };
-      /*char buf[1024] = { 0 };*/
+      char buf[1024] = { 0 };
       int s, bytes_read;
       // allocate socket
       s = socket(AF_BLUETOOTH, SOCK_STREAM, BTPROTO_RFCOMM);
@@ -155,14 +155,6 @@ void server(){
       listen(s, 1);
       // accept one connection
       puts("ready for connection");
-      /*pthread_t force_ex_th;*/
-      /*
-       *_Bool* ex = malloc(sizeof(_Bool));
-       **ex = 1;
-       */
-      /*pthread_create(&force_ex_th, NULL, (void*)&flip_q, ex);*/
-      // TODO: maybe add a thread to constantly scan and allow new connections
-      // and add them to a struct peer_list
       // all clients should periodically receive this peer_list 
       struct peer_list* pl = malloc(sizeof(struct peer_list));
       pl_init(pl);
@@ -181,12 +173,14 @@ void server(){
       // make a spearate function rw_loop that takes in an int for client/server number
       // and keeps reading and writing to the server 
       // this can be used in both client and server
-      // wait until we have >=1 connections
-      while(pl->sz == 0);
+      // wait until we have >0 connections
+      while(!pl->sz);
       pthread_t snd_thr;
       struct snd_tp_arg* arg = malloc(sizeof(struct snd_tp_arg));
+      // shouldn't be sending to sock, pass in peer_list and use pl->a_l.clnt_num
       arg->sock = s; arg->d_name = arg->mac = NULL;
       pthread_create(&snd_thr, NULL, (void*)&snd_to_partner, arg);
+      // TODO: read_from_partner() should run in a separate thread
       while(arg->cont){ 
             for(int i = 0; i < pl->sz; ++i){
                   bytes_read = read(pl->l_a[i].clnt_num, buf, sizeof(buf));
@@ -195,6 +189,7 @@ void server(){
             }
       }
       pl->continuous = 0;
+      pthread_join(acc_con, NULL);
       pthread_join(snd_thr, NULL);
       // close connections
       for(int i = 0; i < pl->sz; ++i)close(pl->l_a[i].clnt_num);
@@ -214,7 +209,7 @@ int bind_to_server(bdaddr_t* bd, char* dname, char* mac){
       addr.rc_channel = (uint8_t) 1;
       addr.rc_bdaddr = *bd;
       // connect to server
-      printf("attempting to connect to %s\n", dname);
+      /*printf("attempting to connect to %s\n", dname);*/
       status = connect(s, (struct sockaddr *)&addr, sizeof(addr));
       printf("received status %i\n", status);
       // send a message
