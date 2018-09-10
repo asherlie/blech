@@ -119,8 +119,12 @@ void accept_connections(struct peer_list* pl, int sock, struct sockaddr_rc rem_a
       socklen_t opt = sizeof(rem_addr);
       // using this criteria to allow cancelling/timing out of acception
       int clnt;
+      char buf[1024] = { 0 };
       while(pl->continuous){
             clnt = accept(sock, (struct sockaddr *)&rem_addr, &opt);
+            ba2str(&rem_addr.rc_bdaddr, buf);
+            printf("accepted connection from %s\n", buf);
+            memset(buf, 0, sizeof(buf));
             pl_add(pl, rem_addr, clnt);
       }
 }
@@ -137,9 +141,8 @@ void accept_connections_pth(struct a_c_arg* arg){
 
 void server(){
       struct sockaddr_rc loc_addr = { 0 }, rem_addr = { 0 };
-      char buf[1024] = { 0 };
-      int s, clnt, bytes_read;
-      socklen_t opt = sizeof(rem_addr);
+      /*char buf[1024] = { 0 };*/
+      int s, bytes_read;
       // allocate socket
       s = socket(AF_BLUETOOTH, SOCK_STREAM, BTPROTO_RFCOMM);
       // bind socket to port 1 of the first available 
@@ -161,25 +164,40 @@ void server(){
       // TODO: maybe add a thread to constantly scan and allow new connections
       // and add them to a struct peer_list
       // all clients should periodically receive this peer_list 
-      clnt = accept(s, (struct sockaddr *)&rem_addr, &opt);
-      ba2str(&rem_addr.rc_bdaddr, buf);
-      printf("accepted connection from %s\n", buf);
-      memset(buf, 0, sizeof(buf));
+      struct peer_list* pl = malloc(sizeof(struct peer_list));
+      pl_init(pl);
+      struct a_c_arg* aca = malloc(sizeof(struct a_c_arg));
+      aca->pl = pl; aca->sock = s; aca->rem_addr = rem_addr;
+      pthread_t acc_con;
+      // TODO: remember to close(pl->l_a[i].clnt_num);
+      pthread_create(&acc_con, NULL, (void*)&accept_connections_pth, aca);
+      /*clnt = accept(s, (struct sockaddr *)&rem_addr, &opt);*/
+      /*
+       *ba2str(&rem_addr.rc_bdaddr, buf);
+       *printf("accepted connection from %s\n", buf);
+       *memset(buf, 0, sizeof(buf));
+       */
       // read data from the client
       // make a spearate function rw_loop that takes in an int for client/server number
       // and keeps reading and writing to the server 
       // this can be used in both client and server
+      // wait until we have >=1 connections
+      while(pl->sz == 0);
       pthread_t snd_thr;
       struct snd_tp_arg* arg = malloc(sizeof(struct snd_tp_arg));
       arg->sock = s; arg->d_name = arg->mac = NULL;
       pthread_create(&snd_thr, NULL, (void*)&snd_to_partner, arg);
       while(arg->cont){ 
-            bytes_read = read(clnt, buf, sizeof(buf));
-            if(bytes_read > 0)printf("partner: %s\n", buf);
+            for(int i = 0; i < pl->sz; ++i){
+                  bytes_read = read(pl->l_a[i].clnt_num, buf, sizeof(buf));
+                  // TODO: print partner name
+                  if(bytes_read > 0)printf("partner: %s\n", buf);
+            }
       }
+      pl->continuous = 0;
       pthread_join(snd_thr, NULL);
-      // close connection
-      close(clnt);
+      // close connections
+      for(int i = 0; i < pl->sz; ++i)close(pl->l_a[i].clnt_num);
       close(s);
 }
 
