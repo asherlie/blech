@@ -16,6 +16,20 @@ struct snd_tp_arg{
       char* mac;
       /*bdaddr_t */
 };
+
+struct loc_addr_clnt_num{
+      struct sockaddr_rc l_a;
+      int clnt_num; };
+// TODO: this should be sorted to allow for binary search
+// for easiest shortest path node calculation
+struct peer_list{
+      /*struct sockaddr* pl;*/
+      /*loc_addr* l_a;*/
+      struct loc_addr_clnt_num* l_a;
+      int cap;
+      int sz;
+      _Bool continuous;
+};
 // sends messages and assumes they have been received
 
 /* this code borrows from www.people.csail.mit.edu/albert/bluez-intro/c404.html */
@@ -74,6 +88,53 @@ void snd_to_partner(struct snd_tp_arg* arg){
       return;
 }
 
+/*
+ *void flip_q(_Bool* flip){
+ *      while(getchar() != 'q');
+ *      *flip = 0;
+ *      return;
+ *}
+ */
+
+void pl_init(struct peer_list* pl){
+      pl->sz = 0;
+      pl->cap = 1;
+      pl->l_a = malloc(sizeof(struct loc_addr_clnt_num)*pl->cap);
+      pl->continuous = 1;
+}
+
+void pl_add(struct peer_list* pl, struct sockaddr_rc la, int clnt_num){
+      if(pl->sz == pl->cap){
+            pl->cap *= 2;
+            struct loc_addr_clnt_num* tmp_l_a = malloc(sizeof(struct loc_addr_clnt_num)*pl->cap);
+            memcpy(tmp_l_a, pl->l_a, pl->sz);
+            free(pl->l_a);
+            pl->l_a = tmp_l_a;
+      }
+      pl->l_a[pl->sz].l_a = la;
+      pl->l_a[pl->sz++].clnt_num = clnt_num;
+}
+
+void accept_connections(struct peer_list* pl, int sock, struct sockaddr_rc rem_addr){
+      socklen_t opt = sizeof(rem_addr);
+      // using this criteria to allow cancelling/timing out of acception
+      int clnt;
+      while(pl->continuous){
+            clnt = accept(sock, (struct sockaddr *)&rem_addr, &opt);
+            pl_add(pl, rem_addr, clnt);
+      }
+}
+
+struct a_c_arg{
+      struct peer_list* pl;
+      int sock;
+      struct sockaddr_rc rem_addr;
+};
+
+void accept_connections_pth(struct a_c_arg* arg){
+      accept_connections(arg->pl, arg->sock, arg->rem_addr);
+}
+
 void server(){
       struct sockaddr_rc loc_addr = { 0 }, rem_addr = { 0 };
       char buf[1024] = { 0 };
@@ -91,6 +152,15 @@ void server(){
       listen(s, 1);
       // accept one connection
       puts("ready for connection");
+      /*pthread_t force_ex_th;*/
+      /*
+       *_Bool* ex = malloc(sizeof(_Bool));
+       **ex = 1;
+       */
+      /*pthread_create(&force_ex_th, NULL, (void*)&flip_q, ex);*/
+      // TODO: maybe add a thread to constantly scan and allow new connections
+      // and add them to a struct peer_list
+      // all clients should periodically receive this peer_list 
       clnt = accept(s, (struct sockaddr *)&rem_addr, &opt);
       ba2str(&rem_addr.rc_bdaddr, buf);
       printf("accepted connection from %s\n", buf);
@@ -102,7 +172,6 @@ void server(){
       pthread_t snd_thr;
       struct snd_tp_arg* arg = malloc(sizeof(struct snd_tp_arg));
       arg->sock = s; arg->d_name = arg->mac = NULL;
-      /*pthread_create(&snd_thr, NULL, (void*)&snd_to_partner, (void*)arg);*/
       pthread_create(&snd_thr, NULL, (void*)&snd_to_partner, arg);
       while(arg->cont){ 
             bytes_read = read(clnt, buf, sizeof(buf));
@@ -110,12 +179,11 @@ void server(){
       }
       pthread_join(snd_thr, NULL);
       // close connection
-      #ifdef TEST
       close(clnt);
       close(s);
-      #endif
 }
 
+// user can bind to the name of any node in the network
 int bind_to_server(bdaddr_t* bd, char* dname, char* mac){
       int status = 0, s;
       #ifndef TEST
