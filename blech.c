@@ -6,8 +6,16 @@
 #include <bluetooth/hci.h>
 #include <bluetooth/hci_lib.h>
 
+#include <pthread.h>
 #include <bluetooth/rfcomm.h>
 
+struct snd_tp_arg{
+      _Bool cont;
+      int sock;
+      char* d_name;
+      char* mac;
+      /*bdaddr_t */
+};
 // sends messages and assumes they have been received
 
 /* this code borrows from www.people.csail.mit.edu/albert/bluez-intro/c404.html */
@@ -47,6 +55,24 @@ bdaddr_t* get_bdaddr(char* d_name, char** m_name, char** m_addr){
       close(sock);
       return NULL;
 }
+void snd_to_partner(struct snd_tp_arg* arg){
+      while(arg->cont){
+      /*while(1){*/
+            char* msg = NULL;
+            size_t sz = 0;
+            unsigned int sl = getline(&msg, &sz, stdin);
+            if(msg[sl-1] == '\n')msg[--sl] = 0;
+            if(sl == 1 && *msg == 'q')break;
+            #ifndef TEST
+            write(arg->sock, msg, sz);
+            printf("sent message \"%s\" to %s@%s\n", msg, arg->d_name, arg->mac);
+            #else
+            printf("%s\n", msg);
+            #endif
+      }
+      arg->cont = 0;
+      return;
+}
 
 void server(){
       struct sockaddr_rc loc_addr = { 0 }, rem_addr = { 0 };
@@ -67,24 +93,27 @@ void server(){
       puts("ready for connection");
       clnt = accept(s, (struct sockaddr *)&rem_addr, &opt);
       ba2str(&rem_addr.rc_bdaddr, buf);
-      fprintf(stderr, "accepted connection from %s\n", buf);
+      printf("accepted connection from %s\n", buf);
       memset(buf, 0, sizeof(buf));
       // read data from the client
       // make a spearate function rw_loop that takes in an int for client/server number
       // and keeps reading and writing to the server 
       // this can be used in both client and server
-      while(1){ 
+      pthread_t snd_thr;
+      struct snd_tp_arg* arg = malloc(sizeof(struct snd_tp_arg));
+      arg->sock = s; arg->d_name = arg->mac = NULL;
+      /*pthread_create(&snd_thr, NULL, (void*)&snd_to_partner, (void*)arg);*/
+      pthread_create(&snd_thr, NULL, (void*)&snd_to_partner, arg);
+      while(arg->cont){ 
             bytes_read = read(clnt, buf, sizeof(buf));
             if(bytes_read > 0)printf("partner: %s\n", buf);
-            // TODO: client should be able to send messages
-            /*
-            *write(clnt, "msg", 4);
-            *puts("sent msg to partner");
-            */
       }
+      pthread_join(snd_thr, NULL);
       // close connection
+      #ifdef TEST
       close(clnt);
       close(s);
+      #endif
 }
 
 int bind_to_server(bdaddr_t* bd, char* dname, char* mac){
@@ -106,19 +135,9 @@ int bind_to_server(bdaddr_t* bd, char* dname, char* mac){
       #endif
       if(status == 0){
             puts("ready to send messages");
-            while(1){
-                  char* msg = NULL;
-                  size_t sz = 0;
-                  unsigned int sl = getline(&msg, &sz, stdin);
-                  if(msg[sl-1] == '\n')msg[--sl] = 0;
-                  if(sl == 1 && *msg == 'q')break;
-                  #ifndef TEST
-                  status = write(s, msg, sz);
-                  printf("sent message \"%s\" to %s@%s\n", msg, dname, mac);
-                  #else
-                  printf("%s\n", msg);
-                  #endif
-            }
+            struct snd_tp_arg arg;
+            arg.sock = s; arg.cont = 1; arg.d_name = dname; arg.mac = mac;
+            snd_to_partner(&arg);
       }
       else perror("uh oh");
       #ifndef TEST
