@@ -13,14 +13,17 @@ struct snd_tp_arg{
       struct peer_list* pl;
       _Bool cont;
       int sock;
-      char* d_name;
-      char* mac;
+      /*
+       *char* d_name;
+       *char* mac;
+       */
       /*bdaddr_t */
 };
 
 struct loc_addr_clnt_num{
-      struct sockaddr_rc l_a;
-      int clnt_num;
+      struct sockaddr_rc l_a; int clnt_num;
+      // stores client name, mac 
+      char** clnt_info;
 };
 // TODO: this should be sorted to allow for binary search
 // for easiest shortest path node calculation
@@ -102,7 +105,7 @@ void snd_to_partner(struct snd_tp_arg* arg){
                   }
                   #ifndef TEST
                   write(arg->pl->l_a[i].clnt_num, msg, sz);
-                  printf("sent message \"%s\" to %s@%s\n", msg, arg->d_name, arg->mac);
+                  printf("sent message \"%s\" to %s@%s\n", msg, arg->pl->l_a[i].clnt_info[0], arg->pl->l_a[i].clnt_info[1]);
                   #else
                   printf("%s\n", msg);
                   #endif
@@ -119,7 +122,7 @@ void pl_init(struct peer_list* pl){
       pl->continuous = 1;
 }
 
-void pl_add(struct peer_list* pl, struct sockaddr_rc la, int clnt_num){
+void pl_add(struct peer_list* pl, struct sockaddr_rc la, int clnt_num, char* name, char* mac){
       if(pl->sz == pl->cap){
             pl->cap *= 2;
             struct loc_addr_clnt_num* tmp_l_a = malloc(sizeof(struct loc_addr_clnt_num)*pl->cap);
@@ -128,6 +131,9 @@ void pl_add(struct peer_list* pl, struct sockaddr_rc la, int clnt_num){
             pl->l_a = tmp_l_a;
       }
       pl->l_a[pl->sz].l_a = la;
+      pl->l_a[pl->sz].clnt_info = malloc(sizeof(char*)*2);
+      pl->l_a[pl->sz].clnt_info[0] = name;
+      pl->l_a[pl->sz].clnt_info[1] = mac;
       pl->l_a[pl->sz++].clnt_num = clnt_num;
 }
 
@@ -141,7 +147,8 @@ void accept_connections(struct peer_list* pl, int sock, struct sockaddr_rc rem_a
             ba2str(&rem_addr.rc_bdaddr, buf);
             printf("accepted connection from %s\n", buf);
             memset(buf, 0, sizeof(buf));
-            pl_add(pl, rem_addr, clnt);
+            // is this name or mac?
+            pl_add(pl, rem_addr, clnt, strdup(buf), NULL);
       }
 }
 
@@ -177,12 +184,11 @@ void server(){
       while(!pl->sz)usleep(1);
       pthread_t snd_thr;
       struct snd_tp_arg* arg = malloc(sizeof(struct snd_tp_arg));
-      arg->sock = s; arg->d_name = arg->mac = NULL; arg->cont = 1;
+      arg->sock = s; arg->cont = 1;
       arg->pl = pl;
       pthread_create(&snd_thr, NULL, (void*)&snd_to_partner, (void*)arg);
       while(arg->cont){ 
             for(int i = 0; i < pl->sz; ++i){
-                  get_name_mac(pl->l_a[i].clnt_num, &pl->l_a[i].l_a.rc_bdaddr, &arg->d_name, &arg->mac);
                   bytes_read = read(pl->l_a[i].clnt_num, buf, sizeof(buf));
                   // TODO: print partner name
                   if(bytes_read > 0)printf("partner: %s\n", buf);
@@ -220,8 +226,8 @@ int bind_to_server(bdaddr_t* bd, char* dname, char* mac){
             arg.pl = malloc(sizeof(struct peer_list));
             struct sockaddr_rc la;
             pl_init(arg.pl);
-            pl_add(arg.pl, la, s);
-            arg.sock = s; arg.cont = 1; arg.d_name = dname; arg.mac = mac;
+            pl_add(arg.pl, la, s, dname, mac);
+            arg.sock = s; arg.cont = 1;
             snd_to_partner(&arg);
       }
       else perror("uh oh");
