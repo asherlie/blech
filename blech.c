@@ -10,7 +10,8 @@
 #include <bluetooth/rfcomm.h>
 
 struct snd_tp_arg{
-      _Bool cont;
+      struct peer_list* pl;
+      _Bool cont, single_sock;
       int sock;
       char* d_name;
       char* mac;
@@ -19,7 +20,8 @@ struct snd_tp_arg{
 
 struct loc_addr_clnt_num{
       struct sockaddr_rc l_a;
-      int clnt_num; };
+      int clnt_num;
+};
 // TODO: this should be sorted to allow for binary search
 // for easiest shortest path node calculation
 struct peer_list{
@@ -30,6 +32,13 @@ struct peer_list{
       int sz;
       _Bool continuous;
 };
+
+struct a_c_arg{
+      struct peer_list* pl;
+      int sock;
+      struct sockaddr_rc rem_addr;
+};
+
 // sends messages and assumes they have been received
 
 /* this code borrows from www.people.csail.mit.edu/albert/bluez-intro/c404.html */
@@ -70,19 +79,28 @@ bdaddr_t* get_bdaddr(char* d_name, char** m_name, char** m_addr){
       return NULL;
 }
 void snd_to_partner(struct snd_tp_arg* arg){
+      if(arg->single_sock)arg->pl = malloc(sizeof(struct peer_list));
+      arg->pl->sz = 1;
       while(arg->cont){
       /*while(1){*/
-            char* msg = NULL;
-            size_t sz = 0;
-            unsigned int sl = getline(&msg, &sz, stdin);
-            if(msg[sl-1] == '\n')msg[--sl] = 0;
-            if(sl == 1 && *msg == 'q')break;
-            #ifndef TEST
-            write(arg->sock, msg, sz);
-            printf("sent message \"%s\" to %s@%s\n", msg, arg->d_name, arg->mac);
-            #else
-            printf("%s\n", msg);
-            #endif
+            for(int i = 0; i < arg->pl->sz; ++i){
+                  char* msg = NULL;
+                  size_t sz = 0;
+                  unsigned int sl = getline(&msg, &sz, stdin);
+                  if(msg[sl-1] == '\n')msg[--sl] = 0;
+                  printf("%i\n", sl);
+                  if(sl == 1 && *msg == 'q'){
+                        arg->cont = 0;
+                        return;
+                  }
+                  #ifndef TEST
+                  if(arg->single_sock)write(arg->sock, msg, sz);
+                  else write(arg->pl->l_a[i].clnt_num, msg, sz);
+                  printf("sent message \"%s\" to %s@%s\n", msg, arg->d_name, arg->mac);
+                  #else
+                  printf("%s\n", msg);
+                  #endif
+            }
       }
       arg->cont = 0;
       return;
@@ -129,12 +147,6 @@ void accept_connections(struct peer_list* pl, int sock, struct sockaddr_rc rem_a
       }
 }
 
-struct a_c_arg{
-      struct peer_list* pl;
-      int sock;
-      struct sockaddr_rc rem_addr;
-};
-
 void accept_connections_pth(struct a_c_arg* arg){
       accept_connections(arg->pl, arg->sock, arg->rem_addr);
 }
@@ -174,12 +186,13 @@ void server(){
       // and keeps reading and writing to the server 
       // this can be used in both client and server
       // wait until we have >0 connections
-      while(!pl->sz);
+      while(!pl->sz)usleep(1);
       pthread_t snd_thr;
       struct snd_tp_arg* arg = malloc(sizeof(struct snd_tp_arg));
       // shouldn't be sending to sock, pass in peer_list and use pl->a_l.clnt_num
-      arg->sock = s; arg->d_name = arg->mac = NULL;
-      pthread_create(&snd_thr, NULL, (void*)&snd_to_partner, arg);
+      arg->sock = s; arg->d_name = arg->mac = NULL; arg->cont = 1;
+      arg->pl = pl;
+      pthread_create(&snd_thr, NULL, (void*)&snd_to_partner, (void*)arg);
       // TODO: read_from_partner() should run in a separate thread
       while(arg->cont){ 
             for(int i = 0; i < pl->sz; ++i){
@@ -217,7 +230,7 @@ int bind_to_server(bdaddr_t* bd, char* dname, char* mac){
       if(status == 0){
             puts("ready to send messages");
             struct snd_tp_arg arg;
-            arg.sock = s; arg.cont = 1; arg.d_name = dname; arg.mac = mac;
+            arg.single_sock = 1; arg.sock = s; arg.cont = 1; arg.d_name = dname; arg.mac = mac;
             snd_to_partner(&arg);
       }
       else perror("uh oh");
