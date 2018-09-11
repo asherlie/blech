@@ -13,11 +13,6 @@ struct snd_tp_arg{
       struct peer_list* pl;
       _Bool cont;
       int sock;
-      /*
-       *char* d_name;
-       *char* mac;
-       */
-      /*bdaddr_t */
 };
 
 struct loc_addr_clnt_num{
@@ -28,8 +23,6 @@ struct loc_addr_clnt_num{
 // TODO: this should be sorted to allow for binary search
 // for easiest shortest path node calculation
 struct peer_list{
-      /*struct sockaddr* pl;*/
-      /*loc_addr* l_a;*/
       struct loc_addr_clnt_num* l_a;
       int cap;
       int sz;
@@ -42,10 +35,7 @@ struct a_c_arg{
       struct sockaddr_rc rem_addr;
 };
 
-// sends messages and assumes they have been received
-
 /* this code borrows from www.people.csail.mit.edu/albert/bluez-intro/c404.html */
-// TODO: have separate get_bdaddr_list, add option for indexed selector to choose name and MAC ADDR
 bdaddr_t* get_bdaddr(char* d_name, char** m_name, char** m_addr){
       inquiry_info *ii = NULL;
       int max_rsp, num_rsp;
@@ -83,6 +73,7 @@ bdaddr_t* get_bdaddr(char* d_name, char** m_name, char** m_addr){
 
 // TODO: name and mac addr should be stored in struct loc_addr_clnt_num
 // this function should be obsolete
+// TODO: delete this
 void get_name_mac(int sock, bdaddr_t* bdaddr, char** name, char** mac){
       char* nm = malloc(248*sizeof(char));
       char* mc = malloc(248*sizeof(char));
@@ -238,8 +229,14 @@ int bind_to_server(bdaddr_t* bd, char* dname, char* mac){
 }
 
 // TODO: connect to multiple hosts at once
-// blech starts in user mode unless a server search string isn't provided 
-// or the provided server search string is invalid
+
+/* blech starts in user mode unless a server search string isn't provided 
+   or the provided server search string is invalid 
+
+   it is necessary to know the name of a person/node within direct range
+   in the network. this is the one and only security feature of blech.
+*/
+
 int main(int argc, char** argv){
       if(argc >= 2){
             char* dname; char* mac;
