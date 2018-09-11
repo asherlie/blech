@@ -11,7 +11,7 @@
 
 struct snd_tp_arg{
       struct peer_list* pl;
-      _Bool cont, single_sock;
+      _Bool cont;
       int sock;
       char* d_name;
       char* mac;
@@ -68,7 +68,6 @@ bdaddr_t* get_bdaddr(char* d_name, char** m_name, char** m_addr){
             if(hci_read_remote_name(sock, &(ii+i)->bdaddr, sizeof(name), name, 0) < 0)
                   strcpy(name, "[unknown]");
             if(strcasestr(name, d_name)){
-                  /*printf("found a match: %s  %s\n", addr, name);*/
                   if(m_name)*m_name = strdup(name);
                   if(m_addr)*m_addr = strdup(addr);
                   return &(ii+i)->bdaddr;
@@ -78,24 +77,31 @@ bdaddr_t* get_bdaddr(char* d_name, char** m_name, char** m_addr){
       close(sock);
       return NULL;
 }
+
+// TODO: name and mac addr should be stored in struct loc_addr_clnt_num
+// this function should be obsolete
+void get_name_mac(int sock, bdaddr_t* bdaddr, char** name, char** mac){
+      char* nm = malloc(248*sizeof(char));
+      char* mc = malloc(248*sizeof(char));
+      hci_read_remote_name(sock, bdaddr, 248, nm, 0);
+      ba2str(bdaddr, mc);
+      *name = nm;
+      *mac = mc;
+}
+
 void snd_to_partner(struct snd_tp_arg* arg){
-      if(arg->single_sock)arg->pl = malloc(sizeof(struct peer_list));
-      arg->pl->sz = 1;
       while(arg->cont){
-      /*while(1){*/
             for(int i = 0; i < arg->pl->sz; ++i){
                   char* msg = NULL;
                   size_t sz = 0;
                   unsigned int sl = getline(&msg, &sz, stdin);
                   if(msg[sl-1] == '\n')msg[--sl] = 0;
-                  printf("%i\n", sl);
                   if(sl == 1 && *msg == 'q'){
                         arg->cont = 0;
                         return;
                   }
                   #ifndef TEST
-                  if(arg->single_sock)write(arg->sock, msg, sz);
-                  else write(arg->pl->l_a[i].clnt_num, msg, sz);
+                  write(arg->pl->l_a[i].clnt_num, msg, sz);
                   printf("sent message \"%s\" to %s@%s\n", msg, arg->d_name, arg->mac);
                   #else
                   printf("%s\n", msg);
@@ -105,14 +111,6 @@ void snd_to_partner(struct snd_tp_arg* arg){
       arg->cont = 0;
       return;
 }
-
-/*
- *void flip_q(_Bool* flip){
- *      while(getchar() != 'q');
- *      *flip = 0;
- *      return;
- *}
- */
 
 void pl_init(struct peer_list* pl){
       pl->sz = 0;
@@ -173,29 +171,18 @@ void server(){
       struct a_c_arg* aca = malloc(sizeof(struct a_c_arg));
       aca->pl = pl; aca->sock = s; aca->rem_addr = rem_addr;
       pthread_t acc_con;
-      // TODO: remember to close(pl->l_a[i].clnt_num);
       pthread_create(&acc_con, NULL, (void*)&accept_connections_pth, aca);
-      /*clnt = accept(s, (struct sockaddr *)&rem_addr, &opt);*/
-      /*
-       *ba2str(&rem_addr.rc_bdaddr, buf);
-       *printf("accepted connection from %s\n", buf);
-       *memset(buf, 0, sizeof(buf));
-       */
       // read data from the client
-      // make a spearate function rw_loop that takes in an int for client/server number
-      // and keeps reading and writing to the server 
-      // this can be used in both client and server
       // wait until we have >0 connections
       while(!pl->sz)usleep(1);
       pthread_t snd_thr;
       struct snd_tp_arg* arg = malloc(sizeof(struct snd_tp_arg));
-      // shouldn't be sending to sock, pass in peer_list and use pl->a_l.clnt_num
       arg->sock = s; arg->d_name = arg->mac = NULL; arg->cont = 1;
       arg->pl = pl;
       pthread_create(&snd_thr, NULL, (void*)&snd_to_partner, (void*)arg);
-      // TODO: read_from_partner() should run in a separate thread
       while(arg->cont){ 
             for(int i = 0; i < pl->sz; ++i){
+                  get_name_mac(pl->l_a[i].clnt_num, &pl->l_a[i].l_a.rc_bdaddr, &arg->d_name, &arg->mac);
                   bytes_read = read(pl->l_a[i].clnt_num, buf, sizeof(buf));
                   // TODO: print partner name
                   if(bytes_read > 0)printf("partner: %s\n", buf);
@@ -230,7 +217,11 @@ int bind_to_server(bdaddr_t* bd, char* dname, char* mac){
       if(status == 0){
             puts("ready to send messages");
             struct snd_tp_arg arg;
-            arg.single_sock = 1; arg.sock = s; arg.cont = 1; arg.d_name = dname; arg.mac = mac;
+            arg.pl = malloc(sizeof(struct peer_list));
+            struct sockaddr_rc la;
+            pl_init(arg.pl);
+            pl_add(arg.pl, la, s);
+            arg.sock = s; arg.cont = 1; arg.d_name = dname; arg.mac = mac;
             snd_to_partner(&arg);
       }
       else perror("uh oh");
@@ -241,7 +232,6 @@ int bind_to_server(bdaddr_t* bd, char* dname, char* mac){
 }
 
 // TODO: connect to multiple hosts at once
-// a thread should be periodically sending their list of partners to their list of partners
 // blech starts in user mode unless a server search string isn't provided 
 // or the provided server search string is invalid
 int main(int argc, char** argv){
