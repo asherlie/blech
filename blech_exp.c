@@ -59,21 +59,15 @@ int bind_to_server(bdaddr_t* bd, int* sock){
       return status;
 }
 
-// this doesn't have to run in a thread
-// the main thread can take input from getline
-// and based on input will relegate to snd_msg_to_peerso
-// there will be a background thread for accepting new connections
-// which will lock when one is found so nothing fishy happens
-// with iteration thru peer_list
-int snd_msg_to_peers(struct snd_tp_arg* arg){
-      printf("sending message to %i peers\n", arg->pl->sz);
-      for(int i = 0; i < arg->pl->sz ; ++i){
+int snd_msg_to_peers(struct peer_list* pl, char* msg, int msg_sz){
+      printf("sending message to %i peers\n", pl->sz);
+      for(int i = 0; i < pl->sz ; ++i){
             // assuming already bound
-            /*bind_to_server(&arg->pl->l_a[i].l_a.rc_bdaddr);*/
-            send(arg->pl->l_a[i].clnt_num, arg->msg, arg->msg_sz, 0L);
-            printf("sent message \"%s\" to %s@%s\n", arg->msg, arg->pl->l_a[i].clnt_info[0], arg->pl->l_a[i].clnt_info[1]);
+            /*bind_to_server(&pl->l_a[i].l_a.rc_bdaddr);*/
+            send(pl->l_a[i].clnt_num, msg, msg_sz, 0L);
+            printf("sent message \"%s\" to %s@%s\n", msg, pl->l_a[i].clnt_info[0], pl->l_a[i].clnt_info[1]);
       }
-      return arg->pl->sz;
+      return pl->sz;
 }
 
 void accept_connections(struct peer_list* pl, struct sockaddr_rc rem_addr){
@@ -147,8 +141,6 @@ int main(int argc, char** argv){
       pthread_t acc_th, rea_th;
       pthread_create(&acc_th, NULL, (void*)&accept_connections_pth, aca);
       pthread_create(&rea_th, NULL, (void*)&read_messages_pth, pl);
-      struct snd_tp_arg snd_arg;
-      snd_arg.pl = pl;
       while(1){
             read = getline(&ln, &sz, stdin);
             ln[--read] = '\0';
@@ -157,8 +149,7 @@ int main(int argc, char** argv){
                   pl_print(pl);
                   continue;
             }
-            snd_arg.msg = ln; snd_arg.msg_sz = read;
-            snd_msg_to_peers(&snd_arg);
+            snd_msg_to_peers(pl, ln, read);
       }
       return 1;
 }

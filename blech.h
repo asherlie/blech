@@ -1,12 +1,3 @@
-struct snd_tp_arg{
-      char* msg;
-      int msg_sz;
-      struct peer_list* pl;
-      /*_Bool cont;*/
-      // unused bc of pl
-      int sock;
-};
-
 struct a_c_arg{
       struct peer_list* pl;
       int sock;
