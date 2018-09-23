@@ -14,9 +14,10 @@
 struct peer_list{
       struct loc_addr_clnt_num* l_a;
       int cap;
-      int sz;
+      int sz, local_sock;
       _Bool continuous, lock;
 };
 
 void pl_init(struct peer_list* pl);
 void pl_add(struct peer_list* pl, struct sockaddr_rc la, int clnt_num, char* name, char* mac);
+void pl_print(struct peer_list* pl);

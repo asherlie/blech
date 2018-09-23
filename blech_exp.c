@@ -49,58 +49,7 @@ void get_name_mac(int sock, bdaddr_t* bdaddr, char** name, char** mac){
       *mac = mc;
 }
 
-// this doesn't have to run in a thread
-// the main thread can take input from getline
-// and based on input will relegate to snd_msg_to_peerso
-// there will be a background thread for accepting new connections
-// which will lock when one is found so nothing fishy happens
-// with iteration thru peer_list
-int snd_msg_to_peers(struct snd_tp_arg* arg){
-      printf("sending message to %i peers\n", arg->pl->sz);
-      for(int i = 0; i < arg->pl->sz ; ++i){
-            // assuming already bound
-            /*bind_to_server(&arg->pl->l_a[i].l_a.rc_bdaddr, NULL, NULL, 0);*/
-            send(arg->pl->l_a[i].clnt_num, arg->msg, arg->msg_sz, 0L);
-            printf("sent message \"%s\" to %s@%s\n", arg->msg, arg->pl->l_a[i].clnt_info[0], arg->pl->l_a[i].clnt_info[1]);
-      }
-      return arg->pl->sz;
-}
-
-void accept_connections(struct peer_list* pl, struct sockaddr_rc rem_addr){
-      struct sockaddr_rc loc_addr = {0};
-      loc_addr.rc_family = AF_BLUETOOTH;
-      loc_addr.rc_bdaddr = *BDADDR_ANY;
-      loc_addr.rc_channel = (uint8_t)1;
-      int s = socket(AF_BLUETOOTH, SOCK_STREAM, BTPROTO_RFCOMM);
-      bind(s, (struct sockaddr*)&loc_addr, sizeof(loc_addr));
-      // listening mode
-      // TODO: remain in listen mode until it's time to send a message
-      listen(s, 1);
-      puts("ready for connection");
-      socklen_t opt = sizeof(rem_addr);
-      int clnt;
-      char buf[1024] = { 0 };
-      pthread_mutex_t pm;
-      pthread_mutex_init(&pm, NULL);
-      while(pl->continuous){
-            clnt = accept(s, (struct sockaddr *)&rem_addr, &opt);
-            ba2str(&rem_addr.rc_bdaddr, buf);
-            printf("accepted connection from %s\n", buf);
-            memset(buf, 0, sizeof(buf));
-            // is this name or mac?
-            // DO NOT add the same rem-addr mul times
-            pthread_mutex_lock(&pm);
-            pl_add(pl, rem_addr, clnt, strdup(buf), NULL);
-            pthread_mutex_unlock(&pm);
-      }
-
-}
-
-void accept_connections_pth(struct a_c_arg* arg){
-      accept_connections(arg->pl, arg->rem_addr);
-}
-
-int bind_to_server(bdaddr_t* bd){
+int bind_to_server(bdaddr_t* bd, int* sock){
       int status = 0, s;
       if(!bd)return -1;
       struct sockaddr_rc addr = { 0 };
@@ -114,7 +63,67 @@ int bind_to_server(bdaddr_t* bd){
       /*printf("attempting to connect to %s\n", dname);*/
       status = connect(s, (struct sockaddr *)&addr, sizeof(addr));
       printf("received status %i\n", status);
+      // which should be returned? s or status?
+      // partner should have my s
+      // return s;
+      *sock = s;
       return status;
+}
+
+// this doesn't have to run in a thread
+// the main thread can take input from getline
+// and based on input will relegate to snd_msg_to_peerso
+// there will be a background thread for accepting new connections
+// which will lock when one is found so nothing fishy happens
+// with iteration thru peer_list
+int snd_msg_to_peers(struct snd_tp_arg* arg){
+      printf("sending message to %i peers\n", arg->pl->sz);
+      for(int i = 0; i < arg->pl->sz ; ++i){
+            // assuming already bound
+            /*bind_to_server(&arg->pl->l_a[i].l_a.rc_bdaddr);*/
+            send(arg->pl->l_a[i].clnt_num, arg->msg, arg->msg_sz, 0L);
+            printf("sent message \"%s\" to %s@%s\n", arg->msg, arg->pl->l_a[i].clnt_info[0], arg->pl->l_a[i].clnt_info[1]);
+      }
+      return arg->pl->sz;
+}
+
+void accept_connections(struct peer_list* pl, struct sockaddr_rc rem_addr){
+      puts("ready for connection");
+      socklen_t opt = sizeof(rem_addr);
+      int clnt;
+      char buf[1024] = { 0 };
+      pthread_mutex_t pm;
+      pthread_mutex_init(&pm, NULL);
+      while(pl->continuous){
+            clnt = accept(pl->local_sock, (struct sockaddr *)&rem_addr, &opt);
+            ba2str(&rem_addr.rc_bdaddr, buf);
+            printf("accepted connection from %s\n", buf);
+            memset(buf, 0, sizeof(buf));
+            // is this name or mac?
+            // DO NOT add the same rem-addr mul times
+            pthread_mutex_lock(&pm);
+            pl_add(pl, rem_addr, clnt, strdup(buf), NULL);
+            /*pl_add(pl, rem_addr, s, strdup(buf), NULL);*/
+            pthread_mutex_unlock(&pm);
+      }
+}
+
+void accept_connections_pth(struct a_c_arg* arg){
+      accept_connections(arg->pl, arg->rem_addr);
+}
+
+void read_messages_pth(struct peer_list* pl){
+      listen(pl->local_sock, 0);
+      char buf[1024] = { 0 };
+      int bytes_read;
+      while(pl->continuous){
+            for(int i = 0; i < pl->sz; ++i){
+                  /*listen(pl->l_a[i].clnt_num, 1);*/
+                  bytes_read = read(pl->l_a[i].clnt_num, buf, sizeof(buf));
+                  // TODO: print partner name
+                  if(bytes_read > 0)printf("partner: %s\n", buf);
+            }
+      }
 }
 
 int main(int argc, char** argv){
@@ -128,10 +137,12 @@ int main(int argc, char** argv){
             bdaddr_t* bd = get_bdaddr(argv[1], &dname, &mac);
             if(bd){
                   printf("attempting to connect to server: %s\n", dname);
-                  bound = bind_to_server(bd);
+                  int s;
+                  bound = bind_to_server(bd, &s);
                   if(bound != -1){
                         struct sockaddr_rc la;
-                        pl_add(pl, la, bound, dname, mac);
+                        /*pl_add(pl, la, bound, dname, mac);*/
+                        pl_add(pl, la, s, dname, mac);
                   }
             }
             else puts("no server found");
@@ -143,14 +154,19 @@ int main(int argc, char** argv){
       // TODO: aca should only contain pl
       struct a_c_arg* aca = malloc(sizeof(struct a_c_arg));
       aca->pl = pl;
-      pthread_t acc_th;
+      pthread_t acc_th, rea_th;
       pthread_create(&acc_th, NULL, (void*)&accept_connections_pth, aca);
+      pthread_create(&rea_th, NULL, (void*)&read_messages_pth, pl);
       struct snd_tp_arg snd_arg;
       snd_arg.pl = pl;
       while(1){
             read = getline(&ln, &sz, stdin);
             ln[--read] = '\0';
-            if(!read || (read == 1 && *ln == 'q'))break;
+            if(read == 1 && *ln == 'q')break;
+            if(read == 1 && *ln == 'p'){
+                  pl_print(pl);
+                  continue;
+            }
             snd_arg.msg = ln; snd_arg.msg_sz = read;
             snd_msg_to_peers(&snd_arg);
       }
