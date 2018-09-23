@@ -13,9 +13,8 @@
 // for easiest shortest path node calculation
 struct peer_list{
       struct loc_addr_clnt_num* l_a;
-      int cap;
-      int sz, local_sock;
-      _Bool continuous, lock;
+      int sz, cap, local_sock;
+      _Bool continuous;
 };
 
 void pl_init(struct peer_list* pl);

@@ -5,7 +5,6 @@ void pl_init(struct peer_list* pl){
       pl->cap = 1;
       pl->l_a = malloc(sizeof(struct loc_addr_clnt_num)*pl->cap);
       pl->continuous = 1;
-      pl->lock = 0;
       struct sockaddr_rc loc_addr = {0};
       loc_addr.rc_family = AF_BLUETOOTH;
       loc_addr.rc_bdaddr = *BDADDR_ANY;
@@ -28,7 +27,6 @@ void pl_add(struct peer_list* pl, struct sockaddr_rc la, int clnt_num, char* nam
       }
       pl->l_a[pl->sz].l_a = la;
       pl->l_a[pl->sz].clnt_info = malloc(sizeof(char*)*2);
-      /*char* unk = malloc*/
       if(!name){
             pl->l_a[pl->sz].clnt_info[0] = malloc(10);
             strcpy(pl->l_a[pl->sz].clnt_info[0], "[unknown]");
