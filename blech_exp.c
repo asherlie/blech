@@ -38,7 +38,7 @@ bdaddr_t* get_bdaddr(char* d_name, char** m_name, char** m_addr){
       return NULL;
 }
 
-int bind_to_server(bdaddr_t* bd, int* sock){
+int bind_to_bdaddr(bdaddr_t* bd, int* sock){
       int status = 0, s;
       if(!bd)return -1;
       struct sockaddr_rc addr = { 0 };
@@ -47,7 +47,7 @@ int bind_to_server(bdaddr_t* bd, int* sock){
       addr.rc_family = AF_BLUETOOTH;
       addr.rc_channel = (uint8_t) 1;
       addr.rc_bdaddr = *bd;
-      // connect to server
+      // connect to peer
       status = connect(s, (struct sockaddr *)&addr, sizeof(addr));
       printf("received status %i\n", status);
       *sock = s;
@@ -58,7 +58,7 @@ int snd_msg_to_peers(struct peer_list* pl, char* msg, int msg_sz){
       printf("sending message to %i peers\n", pl->sz);
       for(int i = 0; i < pl->sz ; ++i){
             // assuming already bound
-            /*bind_to_server(&pl->l_a[i].l_a.rc_bdaddr);*/
+            /*bind_to_bdaddr(&pl->l_a[i].l_a.rc_bdaddr);*/
             send(pl->l_a[i].clnt_num, msg, msg_sz, 0L);
             printf("sent message \"%s\" to %s@%s\n", msg, pl->l_a[i].clnt_info[0], pl->l_a[i].clnt_info[1]);
       }
@@ -111,21 +111,21 @@ int main(int argc, char** argv){
       pl->continuous = 1;
       if(argc >= 2){
             char* dname; char* mac;
-            printf("looking for server matching search string: %s\n", argv[1]);
+            printf("looking for peer matching search string: %s\n", argv[1]);
             bdaddr_t* bd = get_bdaddr(argv[1], &dname, &mac);
             if(bd){
-                  printf("attempting to connect to server: %s\n", dname);
+                  printf("attempting to connect to peer: %s\n", dname);
                   int s;
-                  bound = bind_to_server(bd, &s);
+                  bound = bind_to_bdaddr(bd, &s);
                   if(bound != -1){
                         struct sockaddr_rc la;
                         /*pl_add(pl, la, bound, dname, mac);*/
                         pl_add(pl, la, s, dname, mac);
                   }
             }
-            else puts("no server found");
+            else puts("no peers found");
       }
-      if(bound == 1)puts("starting in server-only mode");
+      if(bound == 1)puts("starting in accept-only mode");
       size_t sz = 0;
       ssize_t read;
       char* ln = NULL;
