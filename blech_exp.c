@@ -42,19 +42,14 @@ int bind_to_server(bdaddr_t* bd, int* sock){
       int status = 0, s;
       if(!bd)return -1;
       struct sockaddr_rc addr = { 0 };
-      // allocate a socket
       s = socket(AF_BLUETOOTH, SOCK_STREAM, BTPROTO_RFCOMM);
-      // set the connection parameters (who to connect to)
+      // set the connection parameters - who to connect to
       addr.rc_family = AF_BLUETOOTH;
       addr.rc_channel = (uint8_t) 1;
       addr.rc_bdaddr = *bd;
       // connect to server
-      /*printf("attempting to connect to %s\n", dname);*/
       status = connect(s, (struct sockaddr *)&addr, sizeof(addr));
       printf("received status %i\n", status);
-      // which should be returned? s or status?
-      // partner should have my s
-      // return s;
       *sock = s;
       return status;
 }
@@ -70,29 +65,28 @@ int snd_msg_to_peers(struct peer_list* pl, char* msg, int msg_sz){
       return pl->sz;
 }
 
-void accept_connections(struct peer_list* pl, struct sockaddr_rc rem_addr){
+void accept_connections(struct peer_list* pl){
       puts("ready for connection");
-      socklen_t opt = sizeof(rem_addr);
       int clnt;
-      char buf[1024] = { 0 };
+      char addr[19] = {0};
+      char name[248] = {0};
+      struct sockaddr_rc rem_addr;
+      socklen_t opt = sizeof(rem_addr);
       pthread_mutex_t pm;
       pthread_mutex_init(&pm, NULL);
       while(pl->continuous){
             clnt = accept(pl->local_sock, (struct sockaddr *)&rem_addr, &opt);
-            ba2str(&rem_addr.rc_bdaddr, buf);
-            printf("accepted connection from %s\n", buf);
-            memset(buf, 0, sizeof(buf));
-            // is this name or mac?
+            ba2str(&rem_addr.rc_bdaddr, addr);
+            if(hci_read_remote_name(clnt, &rem_addr.rc_bdaddr, sizeof(name), name, 0) < 0)
+                  strcpy(name, "[unknown]");
+            printf("accepted connection from %s@%s\n", name, addr);
             // DO NOT add the same rem-addr mul times
             pthread_mutex_lock(&pm);
-            pl_add(pl, rem_addr, clnt, strdup(buf), NULL);
-            /*pl_add(pl, rem_addr, s, strdup(buf), NULL);*/
+            pl_add(pl, rem_addr, clnt, strdup(name), strdup(addr));
             pthread_mutex_unlock(&pm);
+            memset(name, 0, sizeof(name));
+            memset(addr, 0, sizeof(addr));
       }
-}
-
-void accept_connections_pth(struct a_c_arg* arg){
-      accept_connections(arg->pl, arg->rem_addr);
 }
 
 void read_messages_pth(struct peer_list* pl){
@@ -135,11 +129,8 @@ int main(int argc, char** argv){
       size_t sz = 0;
       ssize_t read;
       char* ln = NULL;
-      // TODO: aca should only contain pl
-      struct a_c_arg* aca = malloc(sizeof(struct a_c_arg));
-      aca->pl = pl;
       pthread_t acc_th, rea_th;
-      pthread_create(&acc_th, NULL, (void*)&accept_connections_pth, aca);
+      pthread_create(&acc_th, NULL, (void*)&accept_connections, pl);
       pthread_create(&rea_th, NULL, (void*)&read_messages_pth, pl);
       while(1){
             read = getline(&ln, &sz, stdin);
