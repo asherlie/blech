@@ -142,5 +142,9 @@ int main(int argc, char** argv){
             }
             snd_msg_to_peers(pl, ln, read);
       }
+      // set continuous to 0 and clean up the read thread
+      // we can't join the accept thread because it's waiting for a connection
+      pl->continuous = 0;
+      pthread_join(rea_th, NULL);
       return 1;
 }
