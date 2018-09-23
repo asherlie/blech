@@ -19,7 +19,6 @@ bdaddr_t* get_bdaddr(char* d_name, char** m_name, char** m_addr){
       flags = IREQ_CACHE_FLUSH;
       ii = (inquiry_info*)malloc(max_rsp*sizeof(inquiry_info));
       num_rsp = hci_inquiry(dev_id, len, max_rsp, NULL, &ii, flags);
-      /*printf("%i devices found\n", num_rsp);*/
       if(num_rsp < 0)perror("hci_inquiry");
       for(int i = 0; i < num_rsp; ++i){
             ba2str(&(ii+i)->bdaddr, addr);
@@ -29,24 +28,14 @@ bdaddr_t* get_bdaddr(char* d_name, char** m_name, char** m_addr){
             if(strcasestr(name, d_name)){
                   if(m_name)*m_name = strdup(name);
                   if(m_addr)*m_addr = strdup(addr);
+                  // memory leak is intentional for the time being to keep this bdaddr_t* valid
+                  // TODO: fix this memory leak
                   return &(ii+i)->bdaddr;
             }
       }
       free(ii);
       close(sock);
       return NULL;
-}
-
-// TODO: name and mac addr should be stored in struct loc_addr_clnt_num
-// this function should be obsolete
-// TODO: delete this
-void get_name_mac(int sock, bdaddr_t* bdaddr, char** name, char** mac){
-      char* nm = malloc(248*sizeof(char));
-      char* mc = malloc(248*sizeof(char));
-      hci_read_remote_name(sock, bdaddr, 248, nm, 0);
-      ba2str(bdaddr, mc);
-      *name = nm;
-      *mac = mc;
 }
 
 int bind_to_server(bdaddr_t* bd, int* sock){
@@ -117,6 +106,7 @@ void read_messages_pth(struct peer_list* pl){
       char buf[1024] = { 0 };
       int bytes_read;
       while(pl->continuous){
+            if(!pl->sz)usleep(1000);
             for(int i = 0; i < pl->sz; ++i){
                   /*listen(pl->l_a[i].clnt_num, 1);*/
                   bytes_read = read(pl->l_a[i].clnt_num, buf, sizeof(buf));
