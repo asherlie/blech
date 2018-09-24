@@ -14,7 +14,9 @@ bdaddr_t* get_bdaddr(char* d_name, char** m_name, char** m_addr){
             perror("opening socket");
             exit(1);
       }
+      // hci_inquiry takes 1.28*len seconds
       len = 8;
+      /*len = 5;*/
       max_rsp = 255;
       flags = IREQ_CACHE_FLUSH;
       ii = (inquiry_info*)malloc(max_rsp*sizeof(inquiry_info));
@@ -49,7 +51,6 @@ int bind_to_bdaddr(bdaddr_t* bd, int* sock){
       addr.rc_bdaddr = *bd;
       // connect to peer
       status = connect(s, (struct sockaddr *)&addr, sizeof(addr));
-      printf("received status %i\n", status);
       *sock = s;
       return status;
 }
@@ -60,13 +61,12 @@ int snd_msg_to_peers(struct peer_list* pl, char* msg, int msg_sz){
             // assuming already bound
             /*bind_to_bdaddr(&pl->l_a[i].l_a.rc_bdaddr);*/
             send(pl->l_a[i].clnt_num, msg, msg_sz, 0L);
-            printf("sent message \"%s\" to %s@%s\n", msg, pl->l_a[i].clnt_info[0], pl->l_a[i].clnt_info[1]);
+            printf("sent message \"%s\" to peer #%i\n", msg, i);
       }
       return pl->sz;
 }
 
 void accept_connections(struct peer_list* pl){
-      puts("ready for connection");
       int clnt;
       char addr[19] = {0};
       char name[248] = {0};
@@ -98,8 +98,8 @@ void read_messages_pth(struct peer_list* pl){
             for(int i = 0; i < pl->sz; ++i){
                   /*listen(pl->l_a[i].clnt_num, 1);*/
                   bytes_read = read(pl->l_a[i].clnt_num, buf, sizeof(buf));
-                  // TODO: print partner name
-                  if(bytes_read > 0)printf("partner: %s\n", buf);
+                  if(bytes_read > 0)printf("%s: %s\n", pl->l_a[i].clnt_info[0], buf);
+                  memset(buf, 0, bytes_read);
             }
       }
 }
@@ -111,17 +111,19 @@ int main(int argc, char** argv){
       pl->continuous = 1;
       if(argc >= 2){
             char* dname; char* mac;
-            printf("looking for peer matching search string: %s\n", argv[1]);
+            printf("looking for peer matching search string: \"%s\"\n", argv[1]);
             bdaddr_t* bd = get_bdaddr(argv[1], &dname, &mac);
             if(bd){
-                  printf("attempting to connect to peer: %s\n", dname);
+                  printf("attempting to connect to peer: %s...", dname);
                   int s;
                   bound = bind_to_bdaddr(bd, &s);
-                  if(bound != -1){
+                  if(bound == 0){
+                        puts("successfully established a connection");
                         struct sockaddr_rc la;
                         /*pl_add(pl, la, bound, dname, mac);*/
                         pl_add(pl, la, s, dname, mac);
                   }
+                  else puts("failed to establish a connection");
             }
             else puts("no peers found");
       }
@@ -132,6 +134,7 @@ int main(int argc, char** argv){
       pthread_t acc_th, rea_th;
       pthread_create(&acc_th, NULL, (void*)&accept_connections, pl);
       pthread_create(&rea_th, NULL, (void*)&read_messages_pth, pl);
+      puts("blech is ready for connections");
       while(1){
             read = getline(&ln, &sz, stdin);
             ln[--read] = '\0';
