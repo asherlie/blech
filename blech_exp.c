@@ -1,6 +1,8 @@
 #include <string.h>
 #include "peer_list.h"
 
+#define KRED "\x1B[31m"
+
 /* this code borrows from www.people.csail.mit.edu/albert/bluez-intro/c404.html */
 bdaddr_t* get_bdaddr(char* d_name, char** m_name, char** m_addr){
       inquiry_info *ii = NULL;
@@ -67,7 +69,7 @@ int snd_msg(struct loc_addr_clnt_num* la, int n_peers, int msg_type, char* msg, 
       for(int i = 0; i < n_peers; ++i){
             // assuming already bound
             /*bind_to_bdaddr(&pl->l_a[i].l_a.rc_bdaddr);*/
-            send(la[i].clnt_num, &msg_type, 1, 0L);
+            send(la[i].clnt_num, &msg_type, 4, 0L);
             // MSG_PASS indicates that a message is being sent indirectly 
             // it will not be printed by read_messages_pth
             // from main: if not found in pl, snd_msg ith MSG_PASS and recp set to mac of end recp
@@ -81,6 +83,7 @@ int snd_msg(struct loc_addr_clnt_num* la, int n_peers, int msg_type, char* msg, 
                   send(la[i].clnt_num, recp, 18, 0L);
             }
             // msg_sz is used to indicate peer number in a PEER_PASS
+            // each index in `route` refers to local peer number
             if(msg_type == PEER_PASS){
                   // sending local pl->l_a[index] to help other nodes construct routes for each glob_peer_list_entry
                   puts("executing peer pass");
@@ -146,6 +149,12 @@ void read_messages_pth(struct peer_list* pl){
                         // adding new route information to
                         // pl->l_a[i] just sent me an integer representing the index of a peer they just added
                         read(pl->l_a[i].clnt_num, recp, 18);
+                        // if we've already recvd this information, don't record or pass it along again
+                        if(compute_global_path(pl, recp))continue;
+                        printf("new user: %s has joined the %s~network~\n", recp, KRED);
+                        // each index in `route` refers to local peer number
+                        // which is why we're recording i, our local peer index #
+                        snd_msg(pl->l_a, pl->sz, PEER_PASS, NULL, i, recp);
                         gple_add_route_entry(gpl_add(pl->gpl, NULL, recp), route_ind);
                   }
                   if(msg_type == MSG_SND || msg_type == MSG_PASS){
@@ -205,12 +214,14 @@ int main(int argc, char** argv){
             }
             // TODO: why is bad information being added to gpl
             if(read == 2 && *ln == 'p' && ln[1] == 'g'){
+                  printf("printing %i entries of global peer list\n", pl->gpl->sz);
                   for(int i = 0; i < pl->gpl->sz; ++i){
                         printf("route to %s@%s:\n", pl->gpl->gpl[i].clnt_info[0], pl->gpl->gpl[i].clnt_info[1]);
                         for(int j = 0; j < pl->gpl->gpl[i].route_s; ++j){
                               printf("%i\n", pl->gpl->gpl[i].route[j]);
                         }
                   }
+                  continue;
             }
             if(*ln == '\\')
             // \name syntax will be send a message to user with name 'name'
