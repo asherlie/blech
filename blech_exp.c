@@ -136,8 +136,6 @@ void read_messages_pth(struct peer_list* pl){
                   /*listen(pl->l_a[i].clnt_num, 1);*/
                   // first reading message type byte
                   read(pl->l_a[i].clnt_num, &msg_type, 1);
-                  /*if(msg_type == PEER_REQ)set a flag indicating that we will want the msg_org thread to search for a peer*/
-                  // if it's not found, pass the PEER_REQ along to all my peers
                   if(msg_type == MSG_PASS){
                         bytes_read = read(pl->l_a[i].clnt_num, recp, 18);
                         la_r = find_peer(pl, recp);
@@ -160,7 +158,7 @@ void read_messages_pth(struct peer_list* pl){
                   // if we finally found recp
                   if(la_r)snd_msg(la_r, 1, MSG_SND, buf, bytes_read, NULL);
                   else if(msg_type == MSG_PASS)snd_msg(pl->l_a, pl->sz, MSG_PASS, buf, bytes_read, recp);
-                  if(bytes_read > 0)printf("%s: %s\n", pl->l_a[i].clnt_info[0], buf);
+                  if(MSG_SND && bytes_read > 0)printf("%s: %s\n", pl->l_a[i].clnt_info[0], buf);
                   memset(buf, 0, bytes_read);
             }
       }
