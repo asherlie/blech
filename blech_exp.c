@@ -140,26 +140,26 @@ void read_messages_pth(struct peer_list* pl){
                         bytes_read = read(pl->l_a[i].clnt_num, recp, 18);
                         la_r = find_peer(pl, recp);
                   }
-                  if(msg_type == PEER_PASS){
+                  else if(msg_type == PEER_PASS){
                         int route_ind = -1;
                         read(pl->l_a[i].clnt_num, &route_ind, 1);
                         // adding new route information to
                         // pl->l_a[i] just sent me an integer representing the index of a peer they just added
-                        // TODO: add relevant data to route
                         read(pl->l_a[i].clnt_num, recp, 18);
                         gple_add_route_entry(gpl_add(pl->gpl, NULL, recp), route_ind);
                   }
-                  bytes_read = read(pl->l_a[i].clnt_num, buf, sizeof(buf));
-                  if(bytes_read < 0 || bytes_read > (int)sizeof(buf)){
-                        puts("cannot print message");
-                        if(bytes_read > 0)memset(buf, 0, 1024);
-                        continue;
+                  if(msg_type == MSG_SND || msg_type == MSG_PASS){
+                        bytes_read = read(pl->l_a[i].clnt_num, buf, sizeof(buf));
+                        if(bytes_read <= 0){
+                              puts("cannot print message");
+                              continue;
+                        }
+                        else if(msg_type == MSG_SND)printf("%s: %s\n", pl->l_a[i].clnt_info[0], buf);
+                        // if we finally found recp
+                        if(la_r)snd_msg(la_r, 1, MSG_SND, buf, bytes_read, NULL);
+                        else if(msg_type == MSG_PASS)snd_msg(pl->l_a, pl->sz, MSG_PASS, buf, bytes_read, recp);
+                        memset(buf, 0, bytes_read);
                   }
-                  // if we finally found recp
-                  if(la_r)snd_msg(la_r, 1, MSG_SND, buf, bytes_read, NULL);
-                  else if(msg_type == MSG_PASS)snd_msg(pl->l_a, pl->sz, MSG_PASS, buf, bytes_read, recp);
-                  if(MSG_SND && bytes_read > 0)printf("%s: %s\n", pl->l_a[i].clnt_info[0], buf);
-                  memset(buf, 0, bytes_read);
             }
       }
 }
@@ -202,6 +202,15 @@ int main(int argc, char** argv){
             if(read == 1 && *ln == 'p'){
                   pl_print(pl);
                   continue;
+            }
+            // TODO: why is bad information being added to gpl
+            if(read == 2 && *ln == 'p' && ln[1] == 'g'){
+                  for(int i = 0; i < pl->gpl->sz; ++i){
+                        printf("route to %s@%s:\n", pl->gpl->gpl[i].clnt_info[0], pl->gpl->gpl[i].clnt_info[1]);
+                        for(int j = 0; j < pl->gpl->gpl[i].route_s; ++j){
+                              printf("%i\n", pl->gpl->gpl[i].route[j]);
+                        }
+                  }
             }
             if(*ln == '\\')
             // \name syntax will be send a message to user with name 'name'
