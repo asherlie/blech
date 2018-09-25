@@ -55,15 +55,42 @@ int bind_to_bdaddr(bdaddr_t* bd, int* sock){
       return status;
 }
 
-int snd_msg_to_peers(struct peer_list* pl, char* msg, int msg_sz){
-      printf("sending message to %i peers\n", pl->sz);
-      for(int i = 0; i < pl->sz ; ++i){
+struct loc_addr_clnt_num* find_peer(struct peer_list* pl, char* mac){
+      for(int i = 0; i < pl->sz; ++i)
+            if(strstr(pl->l_a[i].clnt_info[1], mac))return &pl->l_a[i];
+      return NULL;
+}
+
+// pl is only used for checking for existing peers
+int snd_msg(struct loc_addr_clnt_num* la, int n_peers, int msg_type, char* msg, int msg_sz, char* recp){
+      printf("sending message to %i peers\n", n_peers);
+      for(int i = 0; i < n_peers; ++i){
             // assuming already bound
             /*bind_to_bdaddr(&pl->l_a[i].l_a.rc_bdaddr);*/
-            send(pl->l_a[i].clnt_num, msg, msg_sz, 0L);
-            printf("sent message \"%s\" to peer #%i\n", msg, i);
+            send(la[i].clnt_num, &msg_type, 1, 0L);
+            // MSG_PASS indicates that a message is being sent indirectly 
+            // it will not be printed by read_messages_pth
+            // from main: if not found in pl, snd_msg ith MSG_PASS and recp set to mac of end recp
+            // we can assume that snd_msg will only be invoked with PASS if recp is not in pl or la
+            if(msg_type == MSG_PASS){
+                  if(!recp){
+                        puts("blech::snd_msg: msg_type == MSG_PASS and recp is unspecified");
+                        return -1;
+                  }
+                  /*MAC takes up 17 chars*/
+                  send(la[i].clnt_num, recp, 18, 0L);
+            }
+            // msg_sz is used to indicate peer number in a PEER_PASS
+            if(msg_type == PEER_PASS){
+            }
+            send(la[i].clnt_num, msg, msg_sz, 0L);
+            if(msg_type == MSG_SND)printf("sent message \"%s\" to peer #%i\n", msg, i);
       }
-      return pl->sz;
+      return n_peers;
+}
+
+int snd_txt_to_peers(struct peer_list* pl, char* msg, int msg_sz){
+      return snd_msg(pl->l_a, pl->sz, MSG_SND, msg, msg_sz, NULL);
 }
 
 void accept_connections(struct peer_list* pl){
@@ -83,6 +110,8 @@ void accept_connections(struct peer_list* pl){
             // DO NOT add the same rem-addr mul times
             pthread_mutex_lock(&pm);
             pl_add(pl, rem_addr, clnt, strdup(name), strdup(addr));
+            // each time a peer is added, we need to send updated peer information to all peers
+            // TODO: send peer information
             pthread_mutex_unlock(&pm);
             memset(name, 0, sizeof(name));
             memset(addr, 0, sizeof(addr));
@@ -91,13 +120,32 @@ void accept_connections(struct peer_list* pl){
 
 void read_messages_pth(struct peer_list* pl){
       listen(pl->local_sock, 0);
-      char buf[1024] = { 0 };
+      char buf[1024] = {0};
+      char recp[18] = {0};
+      char msg_type = -1;
       int bytes_read;
+      struct loc_addr_clnt_num* la_r = NULL;
       while(pl->continuous){
             if(!pl->sz)usleep(1000);
             for(int i = 0; i < pl->sz; ++i){
                   /*listen(pl->l_a[i].clnt_num, 1);*/
+                  // first reading message type byte
+                  read(pl->l_a[i].clnt_num, &msg_type, 1);
+                  /*if(msg_type == PEER_REQ)set a flag indicating that we will want the msg_org thread to search for a peer*/
+                  // if it's not found, pass the PEER_REQ along to all my peers
+                  if(msg_type == MSG_PASS){
+                        bytes_read = read(pl->l_a[i].clnt_num, recp, 18);
+                        la_r = find_peer(pl, recp);
+                  }
                   bytes_read = read(pl->l_a[i].clnt_num, buf, sizeof(buf));
+                  if(bytes_read < 0 || bytes_read > (int)sizeof(buf)){
+                        puts("cannot print message");
+                        if(bytes_read > 0)memset(buf, 0, 1024);
+                        continue;
+                  }
+                  // if we finally found recp
+                  if(la_r)snd_msg(la_r, 1, MSG_SND, buf, bytes_read, NULL);
+                  else if(msg_type == MSG_PASS)snd_msg(pl->l_a, pl->sz, MSG_PASS, buf, bytes_read, recp);
                   if(bytes_read > 0)printf("%s: %s\n", pl->l_a[i].clnt_info[0], buf);
                   memset(buf, 0, bytes_read);
             }
@@ -143,7 +191,15 @@ int main(int argc, char** argv){
                   pl_print(pl);
                   continue;
             }
-            snd_msg_to_peers(pl, ln, read);
+            if(*ln == '\\')
+            // \name syntax will be send a message to user with name 'name'
+            // name will be looked up from a mac-name lookup in pl->glob_peers
+            // [[name, mac], ...]
+            // whenever \"" is used, a glowhenever \"" is usedoilkewds
+            // they'll be added each time 
+            /*glob_peer_lookup(pl, );*/
+            compute_global_path(pl, ln+1);
+            snd_txt_to_peers(pl, ln, read);
       }
       // set continuous to 0 and clean up the read thread
       // we can't join the accept or read threads because they're waiting for connections/data

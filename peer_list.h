@@ -9,14 +9,32 @@
 #include <bluetooth/rfcomm.h>
 
 #include "blech.h"
+
+struct glob_peer_list_entry{
+      // [client name, mac]
+      char** clnt_info;
+      // peer_list->l_a[route[0]] is first step of path
+      // route[n-1] will have the clnt_info in their peer_list
+      // NOTE: each digit of route is relative to the peer list of the digit before it
+      int* route;
+};
+
+struct glob_peer_list{
+      int sz, cap;
+      struct glob_peer_list_entry* gpl;
+};
+
 // TODO: this should be sorted to allow for binary search
 // for easiest shortest path node calculation
 struct peer_list{
+      struct glob_peer_list* gpl;
       struct loc_addr_clnt_num* l_a;
       int sz, cap, local_sock;
       _Bool continuous;
 };
 
+void gpl_init(struct glob_peer_list* gpl);
 void pl_init(struct peer_list* pl);
 void pl_add(struct peer_list* pl, struct sockaddr_rc la, int clnt_num, char* name, char* mac);
 void pl_print(struct peer_list* pl);
+int* compute_global_path(struct peer_list* pl, char* mac);
