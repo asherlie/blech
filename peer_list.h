@@ -17,6 +17,7 @@ struct glob_peer_list_entry{
       // route[n-1] will have the clnt_info in their peer_list
       // NOTE: each digit of route is relative to the peer list of the digit before it
       int* route;
+      int route_s, route_c;
 };
 
 struct glob_peer_list{
