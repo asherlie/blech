@@ -38,4 +38,7 @@ void gpl_init(struct glob_peer_list* gpl);
 void pl_init(struct peer_list* pl);
 void pl_add(struct peer_list* pl, struct sockaddr_rc la, int clnt_num, char* name, char* mac);
 void pl_print(struct peer_list* pl);
+void gple_add_route_entry(struct glob_peer_list_entry* gple, int rel_no);
+void gpl_init(struct glob_peer_list* gpl);
+struct glob_peer_list_entry* gpl_add(struct glob_peer_list* gpl, char* name, char* mac);
 int* compute_global_path(struct peer_list* pl, char* mac);

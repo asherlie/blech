@@ -6,7 +6,7 @@ void gpl_init(struct glob_peer_list* gpl){
       gpl->gpl = malloc(sizeof(struct glob_peer_list_entry)*gpl->cap);
 }
 
-void gpl_add(struct glob_peer_list* gpl, char* name, char* mac){
+struct glob_peer_list_entry* gpl_add(struct glob_peer_list* gpl, char* name, char* mac){
       if(gpl->sz == gpl->cap){
             gpl->cap *= 2;
             struct glob_peer_list_entry* tmp_gpl = malloc(sizeof(struct glob_peer_list_entry)*gpl->cap);
@@ -21,6 +21,7 @@ void gpl_add(struct glob_peer_list* gpl, char* name, char* mac){
       gpl->gpl[gpl->sz].route_s = 0;
       gpl->gpl[gpl->sz].route = malloc(sizeof(int)*gpl->gpl[gpl->sz].route_c);
       ++gpl->sz;
+      return &gpl->gpl[gpl->sz-1];
 }
 
 void gple_add_route_entry(struct glob_peer_list_entry* gple, int rel_no){

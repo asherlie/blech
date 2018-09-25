@@ -83,7 +83,9 @@ int snd_msg(struct loc_addr_clnt_num* la, int n_peers, int msg_type, char* msg, 
             // msg_sz is used to indicate peer number in a PEER_PASS
             if(msg_type == PEER_PASS){
                   // sending local pl->l_a[index] to help other nodes construct routes for each glob_peer_list_entry
+                  puts("executing peer pass");
                   send(la[i].clnt_num, &msg_sz, 4, 0L);
+                  send(la[i].clnt_num, recp, 18, 0L);
             }
             else send(la[i].clnt_num, msg, msg_sz, 0L);
             if(msg_type == MSG_SND)printf("sent message \"%s\" to peer #%i\n", msg, i);
@@ -115,7 +117,7 @@ void accept_connections(struct peer_list* pl){
             // each time a peer is added, we need to send updated peer information to all peers
             // TODO: send peer information
             pthread_mutex_unlock(&pm);
-            snd_msg(pl->l_a, pl->sz, PEER_PASS, NULL, pl->sz-1, NULL);
+            snd_msg(pl->l_a, pl->sz, PEER_PASS, NULL, pl->sz-1, strdup(addr));
             memset(name, 0, sizeof(name));
             memset(addr, 0, sizeof(addr));
       }
@@ -141,10 +143,13 @@ void read_messages_pth(struct peer_list* pl){
                         la_r = find_peer(pl, recp);
                   }
                   if(msg_type == PEER_PASS){
+                        int route_ind = -1;
+                        read(pl->l_a[i].clnt_num, &route_ind, 1);
                         // adding new route information to
                         // pl->l_a[i] just sent me an integer representing the index of a peer they just added
                         // TODO: add relevant data to route
-                        // gple_add_route_entry(struct glob_peer_list_entry* gple, int rel_no){
+                        read(pl->l_a[i].clnt_num, recp, 18);
+                        gple_add_route_entry(gpl_add(pl->gpl, NULL, recp), route_ind);
                   }
                   bytes_read = read(pl->l_a[i].clnt_num, buf, sizeof(buf));
                   if(bytes_read < 0 || bytes_read > (int)sizeof(buf)){
