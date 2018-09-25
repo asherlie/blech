@@ -64,6 +64,10 @@ void pl_print(struct peer_list* pl){
 }
 
 int* compute_global_path(struct peer_list* pl, char* mac){
-      if(pl->sz)return &pl->sz;
-      return (int*)mac;
+      for(int i = 0; i < pl->gpl->sz; ++i){
+            if(strstr(pl->gpl->gpl[i].clnt_info[1], mac))
+                  return pl->gpl->gpl[i].route;
+      }
+      // this should never happen
+      return NULL;
 }
