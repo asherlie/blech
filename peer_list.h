@@ -43,5 +43,5 @@ void pl_print(struct peer_list* pl);
 void gple_add_route_entry(struct glob_peer_list_entry* gple, int rel_no);
 void gpl_init(struct glob_peer_list* gpl);
 struct glob_peer_list_entry* gpl_add(struct glob_peer_list* gpl, char* name, char* mac);
-int* compute_global_path(struct peer_list* pl, char* mac);
+int has_peer(struct peer_list* pl, char* mac);
 int next_in_line(struct peer_list* pl, char* mac);

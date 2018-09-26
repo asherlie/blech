@@ -159,7 +159,8 @@ void read_messages_pth(struct peer_list* pl){
                         // pl->l_a[i] just sent me an integer representing the index of a peer they just added
                         read(pl->l_a[i].clnt_num, recp, 18);
                         // if we've already recvd this information, don't record or pass it along again
-                        if(compute_global_path(pl, recp))continue;
+                        if(has_peer(pl, recp))continue;
+                        /*continuing if we already have recp in */
                         printf("new user: %s has joined the %s~network~%s\n", recp, KRED, KNON);
                         // each index in `route` refers to local peer number
                         // which is why we're recording i, our local peer index #
@@ -268,7 +269,6 @@ int main(int argc, char** argv){
             // whenever \"" is used, a glowhenever \"" is usedoilkewds
             // they'll be added each time 
             /*glob_peer_lookup(pl, );*/
-            compute_global_path(pl, ln+1);
             snd_txt_to_peers(pl, ln, read);
       }
       // set continuous to 0 and clean up the read thread

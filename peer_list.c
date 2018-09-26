@@ -87,19 +87,18 @@ void pl_print(struct peer_list* pl){
       }
 }
 
-int* compute_global_path(struct peer_list* pl, char* mac){
-      for(int i = 0; i < pl->gpl->sz; ++i){
-            if(strstr(pl->gpl->gpl[i].clnt_info[1], mac))
-                  return pl->gpl->gpl[i].route;
-      }
-      // this should never happen
-      return NULL;
-}
-
 int next_in_line(struct peer_list* pl, char* mac){
       for(int i = 0; i < pl->gpl->sz; ++i){
             if(strstr(pl->gpl->gpl[i].clnt_info[1], mac))
                   return pl->gpl->gpl[i].dir_p;
       }
       return -1;
+}
+
+int has_peer(struct peer_list* pl, char* mac){
+      for(int i = 0; i < pl->sz; ++i)
+            if(strstr(pl->l_a[i].clnt_info[1], mac))
+                  return 1;
+      if(next_in_line(pl, mac) > -1)return 2;
+      return 0;
 }
