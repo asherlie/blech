@@ -96,7 +96,9 @@ int next_in_line(struct peer_list* pl, char* mac){
       return -1;
 }
 
+/*returns 3 if peer is me, 1 if local peer, 2 if global, 0 else*/
 int has_peer(struct peer_list* pl, char* mac){
+      if(strstr(pl->local_mac, mac))return 3;
       for(int i = 0; i < pl->sz; ++i)
             if(strstr(pl->l_a[i].clnt_info[1], mac))
                   return 1;

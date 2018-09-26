@@ -155,10 +155,10 @@ void read_messages_pth(struct peer_list* pl){
                         // pl->l_a[i] just sent me an integer representing the index of a peer they just added
                         read(pl->l_a[i].clnt_num, recp, 18);
                         // if this is our first local peer, record recp as our own local mac str
-                        if(pl->sz == 2 && !pl->gpl->sz)strncpy(pl->local_mac, recp, 18);
+                        if(pl->sz == 1 && !pl->gpl->sz)strncpy(pl->local_mac, recp, 18);
                         // if we've already recvd this information, don't record or pass it along again
                         // if pl->sz == 2 && pl->gpl is 0, they're sending my info back to me as an initial PEER_PASS
-                        if((pl->sz == 2 && !pl->gpl->sz)|| has_peer(pl, recp))continue;
+                        if((pl->sz == 1 && !pl->gpl->sz)|| has_peer(pl, recp))continue;
                         // continuing if we already have recp in 
                         printf("new [%sglb%s] user: %s has joined the %s~network~%s\n", ANSI_GRE, ANSI_NON, recp, ANSI_RED, ANSI_NON);
                         snd_msg(pl->l_a, pl->sz, PEER_PASS, NULL, i, recp);
