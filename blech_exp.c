@@ -71,7 +71,9 @@ struct loc_addr_clnt_num* find_peer(struct peer_list* pl, char* mac){
 }
 
 int snd_msg(struct loc_addr_clnt_num* la, int n_peers, int msg_type, char* msg, int msg_sz, char* recp){
+      #ifdef DEBUG
       printf("sending message of type: %i to %i peers recp param: %s\n", msg_type, n_peers, recp);
+      #endif
       for(int i = 0; i < n_peers; ++i){
             // assuming already bound
             /*bind_to_bdaddr(&pl->l_a[i].l_a.rc_bdaddr);*/
@@ -92,7 +94,9 @@ int snd_msg(struct loc_addr_clnt_num* la, int n_peers, int msg_type, char* msg, 
             // each index in `route` refers to local peer number
             if(msg_type == PEER_PASS){
                   // sending local pl->l_a[index] to help other nodes construct routes for each glob_peer_list_entry
+                  #ifdef DEBUG
                   puts("executing peer pass");
+                  #endif
                   // this is obselete with current implementation
                   // TODO: implement passing along of full path
                   /*send(la[i].clnt_num, &msg_sz, 4, 0L);*/
@@ -121,8 +125,10 @@ void accept_connections(struct peer_list* pl){
             ba2str(&rem_addr.rc_bdaddr, addr);
             if(hci_read_remote_name(clnt, &rem_addr.rc_bdaddr, sizeof(name), name, 0) < 0)
                   strcpy(name, "[unknown]");
-            /*printf("accepted connection from %s@%s\n", name, addr);*/
-            printf("new [%slcl%s] user: %s@%s has joined the %s~network~%s\n", ANSI_BLU, ANSI_NON, name, addr, ANSI_RED, ANSI_NON);
+            #ifdef DEBUG
+            printf("accepted connection from %s@%s\n", name, addr);
+            #endif
+            printf("new [%slcl%s] user: %s@%s has joined %s~the network~%s\n", ANSI_BLU, ANSI_NON, name, addr, ANSI_RED, ANSI_NON);
             // DO NOT add the same rem-addr mul times
             pthread_mutex_lock(&pm);
             pl_add(pl, rem_addr, clnt, strdup(name), strdup(addr));
@@ -160,7 +166,7 @@ void read_messages_pth(struct peer_list* pl){
                         // if pl->sz == 2 && pl->gpl is 0, they're sending my info back to me as an initial PEER_PASS
                         if((pl->sz == 1 && !pl->gpl->sz)|| has_peer(pl, recp))continue;
                         // continuing if we already have recp in 
-                        printf("new [%sglb%s] user: %s has joined the %s~network~%s\n", ANSI_GRE, ANSI_NON, recp, ANSI_RED, ANSI_NON);
+                        printf("new [%sglb%s] user: %s has joined %s~the network~%s\n", ANSI_GRE, ANSI_NON, recp, ANSI_RED, ANSI_NON);
                         snd_msg(pl->l_a, pl->sz, PEER_PASS, NULL, i, recp);
                         /*gple_add_route_entry(gpl_add(pl->gpl, NULL, recp), route_ind);*/
                         // all we need to know for route is who sent us this peer information
@@ -204,7 +210,7 @@ int main(int argc, char** argv){
                   bound = bind_to_bdaddr(bd, &s);
                   if(bound == 0){
                         puts("succesfully established a connection");
-                        printf("you have joined the %s~network~%s\n", ANSI_RED, ANSI_NON);
+                        printf("you have joined %s~the network~%s\n", ANSI_RED, ANSI_NON);
                         struct sockaddr_rc la;
                         pl_add(pl, la, s, dname, mac);
                   }
