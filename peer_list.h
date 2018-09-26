@@ -16,6 +16,8 @@ struct glob_peer_list_entry{
       // peer_list->l_a[route[0]] is first step of path
       // route[n-1] will have the clnt_info in their peer_list
       // NOTE: each digit of route is relative to the peer list of the digit before it
+      // dir_p is next peer in chain to dest peer
+      int dir_p;
       int* route;
       int route_s, route_c;
 };
@@ -42,3 +44,4 @@ void gple_add_route_entry(struct glob_peer_list_entry* gple, int rel_no);
 void gpl_init(struct glob_peer_list* gpl);
 struct glob_peer_list_entry* gpl_add(struct glob_peer_list* gpl, char* name, char* mac);
 int* compute_global_path(struct peer_list* pl, char* mac);
+int next_in_line(struct peer_list* pl, char* mac);

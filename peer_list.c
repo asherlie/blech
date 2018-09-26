@@ -78,9 +78,12 @@ void pl_add(struct peer_list* pl, struct sockaddr_rc la, int clnt_num, char* nam
 }
 
 void pl_print(struct peer_list* pl){
-      printf("printing %i peers\n", pl->sz);
+      printf("printing %i local peers and %i global peers\n", pl->sz, pl->gpl->sz);
       for(int i = 0; i < pl->sz; ++i){
-            printf("%i: %s@%s\n", i, pl->l_a[i].clnt_info[0], pl->l_a[i].clnt_info[1]);
+            printf("[lcl]%i: %s@%s\n", i, pl->l_a[i].clnt_info[0], pl->l_a[i].clnt_info[1]);
+      }
+      for(int i = 0; i < pl->gpl->sz; ++i){
+            printf("[glb]%i: %s@%s\n", pl->sz+i, pl->gpl->gpl[i].clnt_info[0], pl->gpl->gpl[i].clnt_info[1]);
       }
 }
 
@@ -91,4 +94,12 @@ int* compute_global_path(struct peer_list* pl, char* mac){
       }
       // this should never happen
       return NULL;
+}
+
+int next_in_line(struct peer_list* pl, char* mac){
+      for(int i = 0; i < pl->gpl->sz; ++i){
+            if(strstr(pl->gpl->gpl[i].clnt_info[1], mac))
+                  return pl->gpl->gpl[i].dir_p;
+      }
+      return -1;
 }

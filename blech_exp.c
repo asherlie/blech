@@ -3,6 +3,15 @@
 
 #define KRED "\x1B[31m"
 
+_Bool strtoi(const char* str, unsigned int* ui, int* i){
+      char* res;
+      unsigned int r = (unsigned int)strtol(str, &res, 10);
+      if(*res)return 0;
+      if(i)*i = (int)r;
+      if(ui)*ui = r;
+      return 1;
+}
+
 /* this code borrows from www.people.csail.mit.edu/albert/bluez-intro/c404.html */
 bdaddr_t* get_bdaddr(char* d_name, char** m_name, char** m_addr){
       inquiry_info *ii = NULL;
@@ -87,6 +96,8 @@ int snd_msg(struct loc_addr_clnt_num* la, int n_peers, int msg_type, char* msg, 
             if(msg_type == PEER_PASS){
                   // sending local pl->l_a[index] to help other nodes construct routes for each glob_peer_list_entry
                   puts("executing peer pass");
+                  // this is obselete with current implementation
+                  // TODO: implement passing along of full path
                   send(la[i].clnt_num, &msg_sz, 4, 0L);
                   send(la[i].clnt_num, recp, 18, 0L);
             }
@@ -139,11 +150,8 @@ void read_messages_pth(struct peer_list* pl){
                   /*listen(pl->l_a[i].clnt_num, 1);*/
                   // first reading message type byte
                   read(pl->l_a[i].clnt_num, &msg_type, 1);
-                  if(msg_type == MSG_PASS){
-                        bytes_read = read(pl->l_a[i].clnt_num, recp, 18);
-                        la_r = find_peer(pl, recp);
-                  }
-                  else if(msg_type == PEER_PASS){
+                  // TODO: include MSG_SND in this - messages should propogate in the same way
+                  if(msg_type == PEER_PASS){
                         int route_ind = -1;
                         read(pl->l_a[i].clnt_num, &route_ind, 1);
                         // adding new route information to
@@ -155,11 +163,20 @@ void read_messages_pth(struct peer_list* pl){
                         // each index in `route` refers to local peer number
                         // which is why we're recording i, our local peer index #
                         snd_msg(pl->l_a, pl->sz, PEER_PASS, NULL, i, recp);
-                        gple_add_route_entry(gpl_add(pl->gpl, NULL, recp), route_ind);
+                        /*gple_add_route_entry(gpl_add(pl->gpl, NULL, recp), route_ind);*/
+                        // all we need to know for route is 
+                        gpl_add(pl->gpl, NULL, recp)->dir_p = i;
+                        // TODO: implement full route recording
+                        // i'll need to pass along an int* increasing in size by 1 each node
+                        /*gple_add_route_entry(gpl_add(pl->gpl, NULL, recp), i);*/
+                  }
+                  if(msg_type == MSG_PASS){
+                        bytes_read = read(pl->l_a[i].clnt_num, recp, 18);
+                        la_r = find_peer(pl, recp);
                   }
                   if(msg_type == MSG_SND || msg_type == MSG_PASS){
                         bytes_read = read(pl->l_a[i].clnt_num, buf, sizeof(buf));
-                        if(bytes_read <= 0){
+                        if(MSG_SND && bytes_read <= 0){
                               puts("cannot print message");
                               continue;
                         }
@@ -223,7 +240,27 @@ int main(int argc, char** argv){
                   }
                   continue;
             }
-            if(*ln == '\\')
+            if(read > 2 && *ln == 'p' && ln[1] == 'm'){
+                  int i = -1;
+                  if(!strtoi(ln+3, NULL, &i)){
+                        puts("enter a peer # to send a private message");
+                        continue;
+                  }
+                  int msg_code;
+                  struct loc_addr_clnt_num* la;
+                  char* recp = NULL;
+                  if(i < pl->sz){
+                        msg_code = MSG_SND;
+                        la = &pl->l_a[i];
+                  }
+                  else{
+                        msg_code = MSG_PASS;
+                        la = &pl->l_a[pl->gpl->gpl[i-pl->sz].dir_p];
+                        recp = pl->gpl->gpl[i-pl->sz].clnt_info[1];
+                  }
+                  char snd[] = "test msg";
+                  snd_msg(la, 1, msg_code, snd, 9, recp);
+            }
             // \name syntax will be send a message to user with name 'name'
             // name will be looked up from a mac-name lookup in pl->glob_peers
             // [[name, mac], ...]
