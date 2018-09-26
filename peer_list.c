@@ -81,9 +81,9 @@ void pl_add(struct peer_list* pl, struct sockaddr_rc la, int clnt_num, char* nam
       tv.tv_usec = 100000;
       // TODO: possibly reset each timeout every time a peer is added
       // timeouts should be (1/pl->sz)*1e6
-      setsockopt(clnt_num, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv));
+      setsockopt(clnt_num, SOL_SOCKET, SO_RCVTIMEO, (const char*)&tv, sizeof(tv));
       #ifdef DEBUG
-      printf("%s@%s sock has been set to timeout after %i usecs\n", name, mac, tv.tv_usec);
+      printf("%s@%s sock has been set to timeout after %li usecs\n", name, mac, tv.tv_usec);
       #endif
 }
 
