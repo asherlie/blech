@@ -142,7 +142,7 @@ void read_messages_pth(struct peer_list* pl){
       listen(pl->local_sock, 0);
       char buf[1024] = {0};
       char recp[18] = {0};
-      char msg_type = -1;
+      int msg_type = -1;
       int bytes_read;
       struct loc_addr_clnt_num* la_r = NULL;
       while(pl->continuous){
