@@ -10,6 +10,12 @@
 
 #include "blech.h"
 
+#define ANSI_RED "\x1B[31m"
+#define ANSI_NON "\x1b[0m"
+#define ANSI_GRE "\x1b[32m"
+#define ANSI_BLU "\x1b[34m"
+
+
 struct glob_peer_list_entry{
       // [client name, mac]
       char** clnt_info;
@@ -33,6 +39,7 @@ struct peer_list{
       struct glob_peer_list* gpl;
       struct loc_addr_clnt_num* l_a;
       int sz, cap, local_sock;
+      char* local_mac;
       _Bool continuous;
 };
 

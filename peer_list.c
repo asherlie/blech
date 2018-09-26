@@ -52,6 +52,7 @@ void pl_init(struct peer_list* pl){
       // TODO: remain in listen mode until it's time to send a message
       listen(s, 0);
       pl->local_sock = s;
+      pl->local_mac = malloc(sizeof(char)*18);
 }
 
 void pl_add(struct peer_list* pl, struct sockaddr_rc la, int clnt_num, char* name, char* mac){
@@ -80,10 +81,10 @@ void pl_add(struct peer_list* pl, struct sockaddr_rc la, int clnt_num, char* nam
 void pl_print(struct peer_list* pl){
       printf("printing %i local peers and %i global peers\n", pl->sz, pl->gpl->sz);
       for(int i = 0; i < pl->sz; ++i){
-            printf("[lcl]%i: %s@%s\n", i, pl->l_a[i].clnt_info[0], pl->l_a[i].clnt_info[1]);
+            printf("[%slcl%s]%i: %s@%s\n", ANSI_BLU, ANSI_NON, i, pl->l_a[i].clnt_info[0], pl->l_a[i].clnt_info[1]);
       }
       for(int i = 0; i < pl->gpl->sz; ++i){
-            printf("[glb]%i: %s@%s\n", pl->sz+i, pl->gpl->gpl[i].clnt_info[0], pl->gpl->gpl[i].clnt_info[1]);
+            printf("[%sglb%s]%i: %s@%s\n", ANSI_GRE, ANSI_NON, pl->sz+i, pl->gpl->gpl[i].clnt_info[0], pl->gpl->gpl[i].clnt_info[1]);
       }
 }
 

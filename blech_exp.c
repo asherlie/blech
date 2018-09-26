@@ -1,9 +1,6 @@
 #include <string.h>
 #include "peer_list.h"
 
-#define KRED "\x1B[31m"
-#define KNON "\x1b[0m"
-
 _Bool strtoi(const char* str, unsigned int* ui, int* i){
       char* res;
       unsigned int r = (unsigned int)strtol(str, &res, 10);
@@ -73,14 +70,13 @@ struct loc_addr_clnt_num* find_peer(struct peer_list* pl, char* mac){
       return NULL;
 }
 
-// pl is only used for checking for existing peers
 int snd_msg(struct loc_addr_clnt_num* la, int n_peers, int msg_type, char* msg, int msg_sz, char* recp){
       printf("sending message of type: %i to %i peers recp param: %s\n", msg_type, n_peers, recp);
       for(int i = 0; i < n_peers; ++i){
             // assuming already bound
             /*bind_to_bdaddr(&pl->l_a[i].l_a.rc_bdaddr);*/
             send(la[i].clnt_num, &msg_type, 4, 0L);
-            // MSG_PASS indicates that a message is being sent indirectly 
+            // MSG_PASS indicates that a message is being sent indirectly and that we want to act as a middleperson
             // it will not be printed by read_messages_pth
             // from main: if not found in pl, snd_msg ith MSG_PASS and recp set to mac of end recp
             // we can assume that snd_msg will only be invoked with PASS if recp is not in pl or la
@@ -125,12 +121,12 @@ void accept_connections(struct peer_list* pl){
             ba2str(&rem_addr.rc_bdaddr, addr);
             if(hci_read_remote_name(clnt, &rem_addr.rc_bdaddr, sizeof(name), name, 0) < 0)
                   strcpy(name, "[unknown]");
-            printf("accepted connection from %s@%s\n", name, addr);
+            /*printf("accepted connection from %s@%s\n", name, addr);*/
+            printf("new [%slcl%s] user: %s@%s has joined the %s~network~%s\n", ANSI_BLU, ANSI_NON, name, addr, ANSI_RED, ANSI_NON);
             // DO NOT add the same rem-addr mul times
             pthread_mutex_lock(&pm);
             pl_add(pl, rem_addr, clnt, strdup(name), strdup(addr));
             // each time a peer is added, we need to send updated peer information to all peers
-            // TODO: send peer information
             pthread_mutex_unlock(&pm);
             snd_msg(pl->l_a, pl->sz, PEER_PASS, NULL, pl->sz-1, strdup(addr));
             memset(name, 0, sizeof(name));
@@ -138,6 +134,7 @@ void accept_connections(struct peer_list* pl){
       }
 }
 
+// TODO: MSG_PASS messages should be printed by read_messages_pth with a flag to propogate mass messages
 void read_messages_pth(struct peer_list* pl){
       listen(pl->local_sock, 0);
       char buf[1024] = {0};
@@ -155,18 +152,18 @@ void read_messages_pth(struct peer_list* pl){
                   if(msg_type == PEER_PASS){
                         /*int route_ind = -1;*/
                         /*read(pl->l_a[i].clnt_num, &route_ind, 1);*/
-                        // adding new route information to
                         // pl->l_a[i] just sent me an integer representing the index of a peer they just added
                         read(pl->l_a[i].clnt_num, recp, 18);
+                        // if this is our first local peer, record recp as our own local mac str
+                        if(pl->sz == 2 && !pl->gpl->sz)strncpy(pl->local_mac, recp, 18);
                         // if we've already recvd this information, don't record or pass it along again
-                        if(has_peer(pl, recp))continue;
-                        /*continuing if we already have recp in */
-                        printf("new user: %s has joined the %s~network~%s\n", recp, KRED, KNON);
-                        // each index in `route` refers to local peer number
-                        // which is why we're recording i, our local peer index #
+                        // if pl->sz == 2 && pl->gpl is 0, they're sending my info back to me as an initial PEER_PASS
+                        if((pl->sz == 2 && !pl->gpl->sz)|| has_peer(pl, recp))continue;
+                        // continuing if we already have recp in 
+                        printf("new [%sglb%s] user: %s has joined the %s~network~%s\n", ANSI_GRE, ANSI_NON, recp, ANSI_RED, ANSI_NON);
                         snd_msg(pl->l_a, pl->sz, PEER_PASS, NULL, i, recp);
                         /*gple_add_route_entry(gpl_add(pl->gpl, NULL, recp), route_ind);*/
-                        // all we need to know for route is 
+                        // all we need to know for route is who sent us this peer information
                         gpl_add(pl->gpl, NULL, recp)->dir_p = i;
                         // TODO: implement full route recording
                         // i'll need to pass along an int* increasing in size by 1 each node
@@ -206,9 +203,9 @@ int main(int argc, char** argv){
                   int s;
                   bound = bind_to_bdaddr(bd, &s);
                   if(bound == 0){
-                        puts("successfully established a connection");
+                        puts("succesfully established a connection");
+                        printf("you have joined the %s~network~%s\n", ANSI_RED, ANSI_NON);
                         struct sockaddr_rc la;
-                        /*pl_add(pl, la, bound, dname, mac);*/
                         pl_add(pl, la, s, dname, mac);
                   }
                   else puts("failed to establish a connection");
@@ -255,24 +252,22 @@ int main(int argc, char** argv){
                         msg_code = MSG_SND;
                         la = &pl->l_a[i];
                   }
-                  else{
+                  else if(i < pl->gpl->sz+pl->sz){
                         msg_code = MSG_PASS;
                         la = &pl->l_a[pl->gpl->gpl[i-pl->sz].dir_p];
                         recp = pl->gpl->gpl[i-pl->sz].clnt_info[1];
                   }
+                  else{
+                        puts("enter an in range peer number");
+                        continue;
+                  }
                   char snd[] = "test pm";
                   snd_msg(la, 1, msg_code, snd, 8, recp);
             }
-            // \name syntax will be send a message to user with name 'name'
-            // name will be looked up from a mac-name lookup in pl->glob_peers
-            // [[name, mac], ...]
-            // whenever \"" is used, a glowhenever \"" is usedoilkewds
-            // they'll be added each time 
-            /*glob_peer_lookup(pl, );*/
             snd_txt_to_peers(pl, ln, read);
       }
-      // set continuous to 0 and clean up the read thread
       // we can't join the accept or read threads because they're waiting for connections/data
+      // TODO: look into setting timeout for accept, read and joining threads
       pl->continuous = 0;
       return 1;
 }
