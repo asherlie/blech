@@ -2,6 +2,7 @@
 #include "peer_list.h"
 
 #define KRED "\x1B[31m"
+#define KNON "\x1b[0m"
 
 _Bool strtoi(const char* str, unsigned int* ui, int* i){
       char* res;
@@ -74,7 +75,7 @@ struct loc_addr_clnt_num* find_peer(struct peer_list* pl, char* mac){
 
 // pl is only used for checking for existing peers
 int snd_msg(struct loc_addr_clnt_num* la, int n_peers, int msg_type, char* msg, int msg_sz, char* recp){
-      printf("sending message to %i peers\n", n_peers);
+      printf("sending message of type: %i to %i peers recp param: %s\n", msg_type, n_peers, recp);
       for(int i = 0; i < n_peers; ++i){
             // assuming already bound
             /*bind_to_bdaddr(&pl->l_a[i].l_a.rc_bdaddr);*/
@@ -98,7 +99,7 @@ int snd_msg(struct loc_addr_clnt_num* la, int n_peers, int msg_type, char* msg, 
                   puts("executing peer pass");
                   // this is obselete with current implementation
                   // TODO: implement passing along of full path
-                  send(la[i].clnt_num, &msg_sz, 4, 0L);
+                  /*send(la[i].clnt_num, &msg_sz, 4, 0L);*/
                   send(la[i].clnt_num, recp, 18, 0L);
             }
             else send(la[i].clnt_num, msg, msg_sz, 0L);
@@ -149,17 +150,17 @@ void read_messages_pth(struct peer_list* pl){
             for(int i = 0; i < pl->sz; ++i){
                   /*listen(pl->l_a[i].clnt_num, 1);*/
                   // first reading message type byte
-                  read(pl->l_a[i].clnt_num, &msg_type, 1);
+                  read(pl->l_a[i].clnt_num, &msg_type, 4);
                   // TODO: include MSG_SND in this - messages should propogate in the same way
                   if(msg_type == PEER_PASS){
-                        int route_ind = -1;
-                        read(pl->l_a[i].clnt_num, &route_ind, 1);
+                        /*int route_ind = -1;*/
+                        /*read(pl->l_a[i].clnt_num, &route_ind, 1);*/
                         // adding new route information to
                         // pl->l_a[i] just sent me an integer representing the index of a peer they just added
                         read(pl->l_a[i].clnt_num, recp, 18);
                         // if we've already recvd this information, don't record or pass it along again
                         if(compute_global_path(pl, recp))continue;
-                        printf("new user: %s has joined the %s~network~\n", recp, KRED);
+                        printf("new user: %s has joined the %s~network~%s\n", recp, KRED, KNON);
                         // each index in `route` refers to local peer number
                         // which is why we're recording i, our local peer index #
                         snd_msg(pl->l_a, pl->sz, PEER_PASS, NULL, i, recp);
@@ -258,8 +259,8 @@ int main(int argc, char** argv){
                         la = &pl->l_a[pl->gpl->gpl[i-pl->sz].dir_p];
                         recp = pl->gpl->gpl[i-pl->sz].clnt_info[1];
                   }
-                  char snd[] = "test msg";
-                  snd_msg(la, 1, msg_code, snd, 9, recp);
+                  char snd[] = "test pm";
+                  snd_msg(la, 1, msg_code, snd, 8, recp);
             }
             // \name syntax will be send a message to user with name 'name'
             // name will be looked up from a mac-name lookup in pl->glob_peers
