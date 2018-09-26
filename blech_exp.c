@@ -92,6 +92,7 @@ int snd_msg(struct loc_addr_clnt_num* la, int n_peers, int msg_type, char* msg, 
             }
             // msg_sz is used to indicate peer number in a PEER_PASS
             // each index in `route` refers to local peer number
+            // PP, MAC is sent
             if(msg_type == PEER_PASS){
                   // sending local pl->l_a[index] to help other nodes construct routes for each glob_peer_list_entry
                   #ifdef DEBUG
@@ -134,63 +135,71 @@ void accept_connections(struct peer_list* pl){
             pl_add(pl, rem_addr, clnt, strdup(name), strdup(addr));
             // each time a peer is added, we need to send updated peer information to all peers
             pthread_mutex_unlock(&pm);
+            // alert my local peers 
             snd_msg(pl->l_a, pl->sz, PEER_PASS, NULL, pl->sz-1, strdup(addr));
+            // TODO: alert global peers
+            // TODO: pass existing peers along to new peer
+            for(int i = 0; i < pl->sz; ++i){
+                  snd_msg(&pl->l_a[pl->sz-1], 1, PEER_PASS, NULL, 0, pl->l_a[i].clnt_info[1]);
+            }
             memset(name, 0, sizeof(name));
             memset(addr, 0, sizeof(addr));
       }
 }
 
 // TODO: MSG_PASS messages should be printed by read_messages_pth with a flag to propogate mass messages
-void read_messages_pth(struct peer_list* pl){
-      listen(pl->local_sock, 0);
+void read_messages_pth(struct read_msg_arg* rma){
+/*void read_messages_pth(struct loc_addr_clnt_num* la){*/
+      #ifdef DEBUG
+      puts("READ MESSAGE THREAD STARTED");
+      #endif
       char buf[1024] = {0};
       char recp[18] = {0};
       int msg_type = -1;
       int bytes_read;
       struct loc_addr_clnt_num* la_r = NULL;
-      while(pl->continuous){
-            if(!pl->sz)usleep(1000);
-            for(int i = 0; i < pl->sz; ++i){
-                  /*listen(pl->l_a[i].clnt_num, 1);*/
-                  // first reading message type byte
-                  read(pl->l_a[i].clnt_num, &msg_type, 4);
-                  // TODO: include MSG_SND in this - messages should propogate in the same way
-                  if(msg_type == PEER_PASS){
-                        /*int route_ind = -1;*/
-                        /*read(pl->l_a[i].clnt_num, &route_ind, 1);*/
-                        // pl->l_a[i] just sent me an integer representing the index of a peer they just added
-                        read(pl->l_a[i].clnt_num, recp, 18);
-                        // if this is our first local peer, record recp as our own local mac str
-                        if(pl->sz == 1 && !pl->gpl->sz)strncpy(pl->local_mac, recp, 18);
-                        // if we've already recvd this information, don't record or pass it along again
-                        // if pl->sz == 2 && pl->gpl is 0, they're sending my info back to me as an initial PEER_PASS
-                        if((pl->sz == 1 && !pl->gpl->sz)|| has_peer(pl, recp))continue;
-                        // continuing if we already have recp in 
-                        printf("new [%sglb%s] user: %s has joined %s~the network~%s\n", ANSI_GRE, ANSI_NON, recp, ANSI_RED, ANSI_NON);
-                        snd_msg(pl->l_a, pl->sz, PEER_PASS, NULL, i, recp);
-                        /*gple_add_route_entry(gpl_add(pl->gpl, NULL, recp), route_ind);*/
-                        // all we need to know for route is who sent us this peer information
-                        gpl_add(pl->gpl, NULL, recp)->dir_p = i;
-                        // TODO: implement full route recording
-                        // i'll need to pass along an int* increasing in size by 1 each node
-                        /*gple_add_route_entry(gpl_add(pl->gpl, NULL, recp), i);*/
+      struct peer_list* pl = rma->pl;
+      struct loc_addr_clnt_num* la = &pl->l_a[rma->index];
+      while(la->continuous){
+            /*listen(pl->l_a[i].clnt_num, 1);*/
+            // first reading message type byte
+            read(la->clnt_num, &msg_type, 4);
+            // TODO: include MSG_SND in this - messages should propogate in the same way
+            if(msg_type == PEER_PASS){
+                  /*int route_ind = -1;*/
+                  /*read(pl->l_a[i].clnt_num, &route_ind, 1);*/
+                  // pl->l_a[i] just sent me an integer representing the index of a peer they just added
+                  /*read(pl->l_a[i].clnt_num, recp, 18);*/
+                  // if this is our first local peer, record recp as our own local mac str
+                  if(pl->sz == 1 && !pl->gpl->sz)strncpy(pl->local_mac, recp, 18);
+                  // if we've already recvd this information, don't record or pass it along again
+                  // if pl->sz == 2 && pl->gpl is 0, they're sending my info back to me as an initial PEER_PASS
+                  if((pl->sz == 1 && !pl->gpl->sz)|| has_peer(pl, recp))continue;
+                  // continuing if we already have recp in 
+                  printf("new [%sglb%s] user: %s has joined %s~the network~%s\n", ANSI_GRE, ANSI_NON, recp, ANSI_RED, ANSI_NON);
+                  snd_msg(pl->l_a, pl->sz, PEER_PASS, NULL, 0, recp);
+                  /*gple_add_route_entry(gpl_add(pl->gpl, NULL, recp), route_ind);*/
+                  // all we need to know for route is who sent us this peer information
+                  gpl_add(pl->gpl, NULL, recp)->dir_p = rma->index;
+                  // TODO: implement full route recording
+                  // i'll need to pass along an int* increasing in size by 1 each node
+                  /*gple_add_route_entry(gpl_add(pl->gpl, NULL, recp), i);*/
+            }
+            if(msg_type == MSG_PASS){
+                  bytes_read = read(la->clnt_num, recp, 18);
+                  la_r = find_peer(pl, recp);
+            }
+            if(msg_type == MSG_SND || msg_type == MSG_PASS){
+                  bytes_read = read(la->clnt_num, buf, sizeof(buf));
+                  if(MSG_SND && bytes_read <= 0){
+                        puts("cannot print message");
+                        continue;
                   }
-                  if(msg_type == MSG_PASS){
-                        bytes_read = read(pl->l_a[i].clnt_num, recp, 18);
-                        la_r = find_peer(pl, recp);
-                  }
-                  if(msg_type == MSG_SND || msg_type == MSG_PASS){
-                        bytes_read = read(pl->l_a[i].clnt_num, buf, sizeof(buf));
-                        if(MSG_SND && bytes_read <= 0){
-                              puts("cannot print message");
-                              continue;
-                        }
-                        else if(msg_type == MSG_SND)printf("%s: %s\n", pl->l_a[i].clnt_info[0], buf);
-                        // if we finally found recp
-                        if(la_r)snd_msg(la_r, 1, MSG_SND, buf, bytes_read, NULL);
-                        else if(msg_type == MSG_PASS)snd_msg(pl->l_a, pl->sz, MSG_PASS, buf, bytes_read, recp);
-                        memset(buf, 0, bytes_read);
-                  }
+                  else if(msg_type == MSG_SND)printf("%s: %s\n", la->clnt_info[0], buf);
+                  // if we finally found recp
+                  if(la_r)snd_msg(la_r, 1, MSG_SND, buf, bytes_read, NULL);
+                  else if(msg_type == MSG_PASS)snd_msg(pl->l_a, pl->sz, MSG_PASS, buf, bytes_read, recp);
+                  memset(buf, 0, bytes_read);
             }
       }
 }
@@ -199,6 +208,7 @@ int main(int argc, char** argv){
       int bound = 1;
       struct peer_list* pl = malloc(sizeof(struct peer_list));
       pl_init(pl);
+      pl->read_func = (void*)&read_messages_pth;
       pl->continuous = 1;
       if(argc >= 2){
             char* dname; char* mac;
@@ -222,9 +232,9 @@ int main(int argc, char** argv){
       size_t sz = 0;
       ssize_t read;
       char* ln = NULL;
-      pthread_t acc_th, rea_th;
+      pthread_t acc_th;
       pthread_create(&acc_th, NULL, (void*)&accept_connections, pl);
-      pthread_create(&rea_th, NULL, (void*)&read_messages_pth, pl);
+      /*pthread_create(&rea_th, NULL, (void*)&read_messages_pth, pl);*/
       puts("blech is ready for connections");
       while(1){
             read = getline(&ln, &sz, stdin);
@@ -275,5 +285,15 @@ int main(int argc, char** argv){
       // we can't join the accept or read threads because they're waiting for connections/data
       // TODO: look into setting timeout for accept, read and joining threads
       pl->continuous = 0;
+      struct timeval tv;
+      tv.tv_sec = 0;
+      // .3 secs
+      tv.tv_usec = 300000;
+      // timeouts should be (1/pl->sz)*1e6
+      for(int i = 0; i < pl->sz; ++i){
+            setsockopt(pl->l_a[i].clnt_num, SOL_SOCKET, SO_RCVTIMEO, (const char*)&tv, sizeof(tv));
+            pl->l_a[i].continuous = 0;
+            pthread_join(pl->rt->th[i], NULL);
+      }
       return 1;
 }

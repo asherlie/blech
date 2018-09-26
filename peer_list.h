@@ -33,6 +33,11 @@ struct glob_peer_list{
       struct glob_peer_list_entry* gpl;
 };
 
+struct read_thread{
+      int sz, cap;
+      pthread_t* th;
+};
+
 // TODO: this should be sorted to allow for binary search
 // for easiest shortest path node calculation
 struct peer_list{
@@ -41,6 +46,13 @@ struct peer_list{
       int sz, cap, local_sock;
       char* local_mac;
       _Bool continuous;
+      struct read_thread* rt;
+      void* read_func;
+};
+
+struct read_msg_arg{
+      struct peer_list* pl;
+      int index;
 };
 
 void gpl_init(struct glob_peer_list* gpl);
@@ -52,3 +64,6 @@ void gpl_init(struct glob_peer_list* gpl);
 struct glob_peer_list_entry* gpl_add(struct glob_peer_list* gpl, char* name, char* mac);
 int has_peer(struct peer_list* pl, char* mac);
 int next_in_line(struct peer_list* pl, char* mac);
+void rt_init(struct read_thread* rt);
+//pthread_t add_read_thread(struct peer_list* pl, void* read_th_fnc);
+pthread_t add_read_thread(struct peer_list* pl, void *(*read_th_fnc) (void *));

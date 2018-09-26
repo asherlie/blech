@@ -35,9 +35,29 @@ void gple_add_route_entry(struct glob_peer_list_entry* gple, int rel_no){
       gple->route[gple->route_s++] = rel_no;
 }
 
+pthread_t add_read_thread(struct peer_list* pl, void *(*read_th_fnc) (void *)){
+
+      if(pl->rt->sz == pl->rt->cap){
+            pl->rt->cap *= 2;
+            pthread_t* tmp_rt = malloc(sizeof(pthread_t)*pl->rt->cap);
+            memcpy(tmp_rt, pl->rt->th, sizeof(pthread_t)*pl->rt->sz);
+            free(pl->rt->th);
+            pl->rt->th = tmp_rt;
+      }
+      struct read_msg_arg* rma = malloc(sizeof(struct read_msg_arg));
+      rma->index = pl->rt->sz;
+      rma->pl = pl;
+      pthread_t ptt;
+      pthread_create(&ptt, NULL, read_th_fnc, rma);
+      pl->rt->th[pl->rt->sz++] = ptt;
+      return ptt;
+}
+
 void pl_init(struct peer_list* pl){
       pl->gpl = malloc(sizeof(struct glob_peer_list));
       gpl_init(pl->gpl);
+      pl->rt = malloc(sizeof(struct read_thread));
+      rt_init(pl->rt);
       pl->sz = 0;
       pl->cap = 1;
       pl->l_a = malloc(sizeof(struct loc_addr_clnt_num)*pl->cap);
@@ -52,7 +72,14 @@ void pl_init(struct peer_list* pl){
       // TODO: remain in listen mode until it's time to send a message
       listen(s, 0);
       pl->local_sock = s;
+      listen(pl->local_sock, 0);
       pl->local_mac = malloc(sizeof(char)*18);
+}
+
+void rt_init(struct read_thread* rt){
+      rt->sz = 0;
+      rt->cap = 100;
+      rt->th = malloc(sizeof(pthread_t)*rt->cap);
 }
 
 void pl_add(struct peer_list* pl, struct sockaddr_rc la, int clnt_num, char* name, char* mac){
@@ -75,16 +102,11 @@ void pl_add(struct peer_list* pl, struct sockaddr_rc la, int clnt_num, char* nam
             strcpy(pl->l_a[pl->sz].clnt_info[1], "[unknown]");
       }
       else pl->l_a[pl->sz].clnt_info[1] = mac;
+      pl->l_a[pl->sz].continuous = 1;
       pl->l_a[pl->sz++].clnt_num = clnt_num;
-      struct timeval tv;
-      tv.tv_sec = 0;
-      tv.tv_usec = 100000;
-      // TODO: possibly reset each timeout every time a peer is added
-      // timeouts should be (1/pl->sz)*1e6
-      setsockopt(clnt_num, SOL_SOCKET, SO_RCVTIMEO, (const char*)&tv, sizeof(tv));
-      #ifdef DEBUG
-      printf("%s@%s sock has been set to timeout after %li usecs\n", name, mac, tv.tv_usec);
-      #endif
+      // TODO:
+      /*create a new thread to read and keep it in pl->r_th*/
+      add_read_thread(pl, pl->read_func);
 }
 
 void pl_print(struct peer_list* pl){
