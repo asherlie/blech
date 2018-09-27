@@ -285,15 +285,5 @@ int main(int argc, char** argv){
       // we can't join the accept or read threads because they're waiting for connections/data
       // TODO: look into setting timeout for accept, read and joining threads
       pl->continuous = 0;
-      struct timeval tv;
-      tv.tv_sec = 0;
-      // .3 secs
-      tv.tv_usec = 300000;
-      // timeouts should be (1/pl->sz)*1e6
-      for(int i = 0; i < pl->sz; ++i){
-            setsockopt(pl->l_a[i].clnt_num, SOL_SOCKET, SO_RCVTIMEO, (const char*)&tv, sizeof(tv));
-            pl->l_a[i].continuous = 0;
-            pthread_join(pl->rt->th[i], NULL);
-      }
       return 1;
 }
