@@ -244,17 +244,6 @@ int main(int argc, char** argv){
                   pl_print(pl);
                   continue;
             }
-            // TODO: why is bad information being added to gpl
-            if(read == 2 && *ln == 'p' && ln[1] == 'g'){
-                  printf("printing %i entries of global peer list\n", pl->gpl->sz);
-                  for(int i = 0; i < pl->gpl->sz; ++i){
-                        printf("route to %s@%s:\n", pl->gpl->gpl[i].clnt_info[0], pl->gpl->gpl[i].clnt_info[1]);
-                        for(int j = 0; j < pl->gpl->gpl[i].route_s; ++j){
-                              printf("%i\n", pl->gpl->gpl[i].route[j]);
-                        }
-                  }
-                  continue;
-            }
             if(read > 2 && *ln == 'p' && ln[1] == 'm'){
                   int i = -1;
                   if(!strtoi(ln+3, NULL, &i)){
