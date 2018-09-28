@@ -140,8 +140,8 @@ void accept_connections(struct peer_list* pl){
             // alert my local peers 
             /*sz-1 so as not to send most recent peer*/
             /*TODO: is this correct?*/
-            /*snd_msg(pl->l_a, pl->sz-1, PEER_PASS, NULL, 0, strdup(addr));*/
-            snd_msg(pl->l_a, pl->sz, PEER_PASS, NULL, 0, strdup(addr));
+            snd_msg(pl->l_a, pl->sz-1, PEER_PASS, NULL, 0, strdup(addr));
+            /*snd_msg(pl->l_a, pl->sz, PEER_PASS, NULL, 0, strdup(addr));*/
             // TODO: alert global peers - shouldn't have to because my local peers will alert their locals, etc.
             // TODO: pass existing peers along to new peer
             #ifdef DEBUG
@@ -184,29 +184,31 @@ void read_messages_pth(struct read_msg_arg* rma){
                   /*read(pl->l_a[i].clnt_num, recp, 18);*/
                   // if this is our first local peer, record recp as our own local mac str
                   // TODO: figure out what to do with this - as of now info about me is sent
-                  if(pl->sz == 1 && !pl->gpl->sz)strncpy(pl->local_mac, recp, 18);
+                  // this is not strict enough
+                  // this passes when we make one connection and doesn't let us accept new peer info
+                  /*if(pl->sz == 1 && !pl->gpl->sz)strncpy(pl->local_mac, recp, 18);*/
                   // if we've already recvd this information, don't record or pass it along again
                   // if pl->sz == 2 && pl->gpl is 0, they're sending my info back to me as an initial PEER_PASS
                   // if pl->sz == 1, we have nowhere to pass peers because we've just received this PEER_PASS from peer 0
                   /*if(pl->sz == 1 || has_peer(pl, recp))continue;*/
                   _Bool has_route;
                   struct glob_peer_list_entry* route = glob_peer_route(pl, recp, rma->index, &has_route);
-                  if(pl->sz == 1 || (route && has_route))continue;
+                  /*if(pl->sz == 1 || (route && has_route))continue;*/
+                  if(route && has_route)continue;
                   // if we have the global peer already but this PEER_PASS is coming from a different local peer
                   // we'll want to record this new possible route in gpl->dir_p
                   /*check if rma_index is in dir_p if it is, continue, else, add this new shit to the existing gpl[i]*/
                   /*if(has_peer(pl, recp) && rma->index == next_in_line(pl, recp));*/
                   // continuing if we already have recp in 
                   // we could be here if(route && !has_route)
-                  if(route)printf("new [%sglb%s] user: %s has joined %s~the network~%s\n", ANSI_GRE, ANSI_NON, recp, ANSI_RED, ANSI_NON);
+                  if(!route)printf("new [%sglb%s] user: %s has joined %s~the network~%s\n", ANSI_GRE, ANSI_NON, recp, ANSI_RED, ANSI_NON);
                   // we're sending msg to who we received it from - should we adjust?
                   // what should our terminating criteria be?
-                  snd_msg(pl->l_a, pl->sz, PEER_PASS, NULL, 0, recp);
+                  /*snd_msg(pl->l_a, pl->sz, PEER_PASS, NULL, 0, recp);*/
+                  // doing some quick maths to avoid resending to our sender
+                  snd_msg(pl->l_a, rma->index, PEER_PASS, NULL, 0, recp);
+                  snd_msg(pl->l_a+rma->index+1, pl->sz-rma->index+1, PEER_PASS, NULL, 0, recp);
                   // could do the below to skip user that sent to me
-                  /*
-                   *snd_msg(pl->l_a, rma->index, PEER_PASS, NULL, 0, recp);
-                   *snd_msg(pl->l_a+rma->index+1, pl->sz-rma->index+1, PEER_PASS, NULL, 0, recp);
-                   */
                   // all we need to know for route is who sent us this peer information
                   if(route)gple_add_route_entry(route, rma->index);
                   else gple_add_route_entry(gpl_add(pl->gpl, NULL, recp), rma->index);
