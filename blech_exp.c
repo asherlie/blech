@@ -207,6 +207,8 @@ void read_messages_pth(struct read_msg_arg* rma){
                   /*check if rma_index is in dir_p if it is, continue, else, add this new shit to the existing gpl[i]*/
                   /*if(has_peer(pl, recp) && rma->index == next_in_line(pl, recp));*/
                   // continuing if we already have recp in 
+                  bytes_read = read(la->clnt_num, recp, 18);
+                  la_r = find_peer(pl, recp);
                   // we could be here if(route && !has_route)
                   // messages with my own mac are passing through
                   if(!route)printf("new [%sglb%s] user: %s has joined %s~the network~%s\n", ANSI_GRE, ANSI_NON, recp, ANSI_RED, ANSI_NON);
@@ -223,10 +225,6 @@ void read_messages_pth(struct read_msg_arg* rma){
                   // TODO: implement full route recording
                   // i'll need to pass along an int* increasing in size by 1 each node
                   /*gple_add_route_entry(gpl_add(pl->gpl, NULL, recp), i);*/
-            }
-            if(msg_type == MSG_PASS){
-                  bytes_read = read(la->clnt_num, recp, 18);
-                  la_r = find_peer(pl, recp);
             }
             if(msg_type == MSG_SND || msg_type == MSG_PASS){
                   bytes_read = read(la->clnt_num, buf, sizeof(buf));

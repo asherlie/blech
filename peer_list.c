@@ -7,6 +7,9 @@ void gpl_init(struct glob_peer_list* gpl){
 }
 
 struct glob_peer_list_entry* gpl_add(struct glob_peer_list* gpl, char* name, char* mac){
+      #ifdef DEBUG
+      printf("adding gpl entry with mac: %s\n", mac);
+      #endif
       if(gpl->sz == gpl->cap){
             gpl->cap *= 2;
             struct glob_peer_list_entry* tmp_gpl = malloc(sizeof(struct glob_peer_list_entry)*gpl->cap);
