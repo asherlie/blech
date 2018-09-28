@@ -110,6 +110,8 @@ int snd_msg(struct loc_addr_clnt_num* la, int n_peers, int msg_type, char* msg, 
 }
 
 int snd_txt_to_peers(struct peer_list* pl, char* msg, int msg_sz){
+      // TODO: snd_txt_to_peers should use a mixture between PEER_PASS and MSG_PASS
+      // TODO: should PEER_PASS and MSG_PASS be combined?
       return snd_msg(pl->l_a, pl->sz, MSG_SND, msg, msg_sz, NULL);
 }
 
@@ -136,8 +138,11 @@ void accept_connections(struct peer_list* pl){
             // each time a peer is added, we need to send updated peer information to all peers
             pthread_mutex_unlock(&pm);
             // alert my local peers 
-            snd_msg(pl->l_a, pl->sz, PEER_PASS, NULL, pl->sz-1, strdup(addr));
-            // TODO: alert global peers
+            /*sz-1 so as not to send most recent peer*/
+            /*TODO: is this correct?*/
+            /*snd_msg(pl->l_a, pl->sz-1, PEER_PASS, NULL, 0, strdup(addr));*/
+            snd_msg(pl->l_a, pl->sz, PEER_PASS, NULL, 0, strdup(addr));
+            // TODO: alert global peers - shouldn't have to because my local peers will alert their locals, etc.
             // TODO: pass existing peers along to new peer
             for(int i = 0; i < pl->sz; ++i){
                   snd_msg(&pl->l_a[pl->sz-1], 1, PEER_PASS, NULL, 0, pl->l_a[i].clnt_info[1]);
@@ -166,21 +171,41 @@ void read_messages_pth(struct read_msg_arg* rma){
             read(la->clnt_num, &msg_type, 4);
             // TODO: include MSG_SND in this - messages should propogate in the same way
             if(msg_type == PEER_PASS){
+                  #ifdef DEBUG
+                  printf("received a PEER_PASS msg from %s@%s\n", la->clnt_info[0], la->clnt_info[1]);
+                  #endif
                   /*int route_ind = -1;*/
                   /*read(pl->l_a[i].clnt_num, &route_ind, 1);*/
                   // pl->l_a[i] just sent me an integer representing the index of a peer they just added
                   /*read(pl->l_a[i].clnt_num, recp, 18);*/
                   // if this is our first local peer, record recp as our own local mac str
+                  // TODO: figure out what to do with this - as of now info about me is sent
                   if(pl->sz == 1 && !pl->gpl->sz)strncpy(pl->local_mac, recp, 18);
                   // if we've already recvd this information, don't record or pass it along again
                   // if pl->sz == 2 && pl->gpl is 0, they're sending my info back to me as an initial PEER_PASS
-                  if((pl->sz == 1 && !pl->gpl->sz)|| has_peer(pl, recp))continue;
+                  // if pl->sz == 1, we have nowhere to pass peers because we've just received this PEER_PASS from peer 0
+                  /*if(pl->sz == 1 || has_peer(pl, recp))continue;*/
+                  _Bool has_route;
+                  struct glob_peer_list_entry* route = glob_peer_route(pl, recp, rma->index, &has_route);
+                  if(pl->sz == 1 || (route && has_route))continue;
+                  // if we have the global peer already but this PEER_PASS is coming from a different local peer
+                  // we'll want to record this new possible route in gpl->dir_p
+                  /*check if rma_index is in dir_p if it is, continue, else, add this new shit to the existing gpl[i]*/
+                  /*if(has_peer(pl, recp) && rma->index == next_in_line(pl, recp));*/
                   // continuing if we already have recp in 
-                  printf("new [%sglb%s] user: %s has joined %s~the network~%s\n", ANSI_GRE, ANSI_NON, recp, ANSI_RED, ANSI_NON);
+                  // we could be here if(route && !has_route)
+                  if(route)printf("new [%sglb%s] user: %s has joined %s~the network~%s\n", ANSI_GRE, ANSI_NON, recp, ANSI_RED, ANSI_NON);
+                  // we're sending msg to who we received it from - should we adjust?
+                  // what should our terminating criteria be?
                   snd_msg(pl->l_a, pl->sz, PEER_PASS, NULL, 0, recp);
-                  /*gple_add_route_entry(gpl_add(pl->gpl, NULL, recp), route_ind);*/
+                  // could do the below to skip user that sent to me
+                  /*
+                   *snd_msg(pl->l_a, rma->index, PEER_PASS, NULL, 0, recp);
+                   *snd_msg(pl->l_a+rma->index+1, pl->sz-rma->index+1, PEER_PASS, NULL, 0, recp);
+                   */
                   // all we need to know for route is who sent us this peer information
-                  gpl_add(pl->gpl, NULL, recp)->dir_p = rma->index;
+                  if(route)gple_add_route_entry(route, rma->index);
+                  else gple_add_route_entry(gpl_add(pl->gpl, NULL, recp), rma->index);
                   // TODO: implement full route recording
                   // i'll need to pass along an int* increasing in size by 1 each node
                   /*gple_add_route_entry(gpl_add(pl->gpl, NULL, recp), i);*/
@@ -259,7 +284,7 @@ int main(int argc, char** argv){
                   }
                   else if(i < pl->gpl->sz+pl->sz){
                         msg_code = MSG_PASS;
-                        la = &pl->l_a[pl->gpl->gpl[i-pl->sz].dir_p];
+                        la = &pl->l_a[*pl->gpl->gpl[i-pl->sz].dir_p];
                         recp = pl->gpl->gpl[i-pl->sz].clnt_info[1];
                   }
                   else{
@@ -269,7 +294,7 @@ int main(int argc, char** argv){
                   char snd[] = "test pm";
                   snd_msg(la, 1, msg_code, snd, 8, recp);
             }
-            snd_txt_to_peers(pl, ln, read);
+            else snd_txt_to_peers(pl, ln, read);
       }
       // we can't join the accept or read threads because they're waiting for connections/data
       // TODO: look into setting timeout for accept, read and joining threads

@@ -23,9 +23,8 @@ struct glob_peer_list_entry{
       // route[n-1] will have the clnt_info in their peer_list
       // NOTE: each digit of route is relative to the peer list of the digit before it
       // dir_p is next peer in chain to dest peer
-      int dir_p;
-      int* route;
-      int route_s, route_c;
+      int* dir_p;
+      int dir_p_cap, n_dir_p;
 };
 
 struct glob_peer_list{
@@ -63,7 +62,7 @@ void gple_add_route_entry(struct glob_peer_list_entry* gple, int rel_no);
 void gpl_init(struct glob_peer_list* gpl);
 struct glob_peer_list_entry* gpl_add(struct glob_peer_list* gpl, char* name, char* mac);
 int has_peer(struct peer_list* pl, char* mac);
-int next_in_line(struct peer_list* pl, char* mac);
+struct glob_peer_list_entry* glob_peer_route(struct peer_list* pl, char* mac, int el, _Bool* cont);
 void rt_init(struct read_thread* rt);
 //pthread_t add_read_thread(struct peer_list* pl, void* read_th_fnc);
 pthread_t add_read_thread(struct peer_list* pl, void *(*read_th_fnc) (void *));

@@ -17,26 +17,25 @@ struct glob_peer_list_entry* gpl_add(struct glob_peer_list* gpl, char* name, cha
       gpl->gpl[gpl->sz].clnt_info = malloc(sizeof(char*)*2);
       gpl->gpl[gpl->sz].clnt_info[0] = name;
       gpl->gpl[gpl->sz].clnt_info[1] = mac;
-      gpl->gpl[gpl->sz].route_c = 20;
-      gpl->gpl[gpl->sz].route_s = 0;
-      gpl->gpl[gpl->sz].route = malloc(sizeof(int)*gpl->gpl[gpl->sz].route_c);
+      gpl->gpl[gpl->sz].dir_p_cap = 20;
+      gpl->gpl[gpl->sz].n_dir_p = 0;
+      gpl->gpl[gpl->sz].dir_p = malloc(sizeof(int)*gpl->gpl[gpl->sz].dir_p_cap);
       ++gpl->sz;
       return &gpl->gpl[gpl->sz-1];
 }
 
 void gple_add_route_entry(struct glob_peer_list_entry* gple, int rel_no){
-      if(gple->route_s == gple->route_c){
-            gple->route_c *= 2;
-            int* tmp_route = malloc(sizeof(int)*gple->route_c);
-            memcpy(tmp_route, gple->route, sizeof(int)*gple->route_s);
-            free(gple->route);
-            gple->route = tmp_route;
+      if(gple->n_dir_p == gple->dir_p_cap){
+            gple->dir_p_cap *= 2;
+            int* tmp_route = malloc(sizeof(int)*gple->dir_p_cap);
+            memcpy(tmp_route, gple->dir_p, sizeof(int)*gple->n_dir_p);
+            free(gple->dir_p);
+            gple->dir_p = tmp_route;
       }
-      gple->route[gple->route_s++] = rel_no;
+      gple->dir_p[gple->n_dir_p++] = rel_no;
 }
 
 pthread_t add_read_thread(struct peer_list* pl, void *(*read_th_fnc) (void *)){
-
       if(pl->rt->sz == pl->rt->cap){
             pl->rt->cap *= 2;
             pthread_t* tmp_rt = malloc(sizeof(pthread_t)*pl->rt->cap);
@@ -69,7 +68,6 @@ void pl_init(struct peer_list* pl){
       int s = socket(AF_BLUETOOTH, SOCK_STREAM, BTPROTO_RFCOMM);
       bind(s, (struct sockaddr*)&loc_addr, sizeof(loc_addr));
       // listening mode
-      // TODO: remain in listen mode until it's time to send a message
       listen(s, 0);
       pl->local_sock = s;
       listen(pl->local_sock, 0);
@@ -119,12 +117,22 @@ void pl_print(struct peer_list* pl){
       }
 }
 
-int next_in_line(struct peer_list* pl, char* mac){
+// if cont, *cont is set to if el is already in my route to mac
+struct glob_peer_list_entry* glob_peer_route(struct peer_list* pl, char* mac, int el, _Bool* cont){
       for(int i = 0; i < pl->gpl->sz; ++i){
-            if(strstr(pl->gpl->gpl[i].clnt_info[1], mac))
-                  return pl->gpl->gpl[i].dir_p;
+            if(strstr(pl->gpl->gpl[i].clnt_info[1], mac)){
+                  if(cont){
+                        *cont = 0;
+                        for(int j = 0; j < pl->gpl->gpl[i].n_dir_p; ++j)
+                              if(pl->gpl->gpl[i].dir_p[j] == el){
+                                    *cont = 1;
+                                    /*break;*/
+                              }
+                  }
+                  return &pl->gpl->gpl[i];
+            }
       }
-      return -1;
+      return NULL;
 }
 
 /*returns 3 if peer is me, 1 if local peer, 2 if global, 0 else*/
@@ -133,6 +141,6 @@ int has_peer(struct peer_list* pl, char* mac){
       for(int i = 0; i < pl->sz; ++i)
             if(strstr(pl->l_a[i].clnt_info[1], mac))
                   return 1;
-      if(next_in_line(pl, mac) > -1)return 2;
+      if(glob_peer_route(pl, mac, -1, NULL))return 2;
       return 0;
 }
