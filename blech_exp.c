@@ -140,12 +140,15 @@ void accept_connections(struct peer_list* pl){
             // alert my local peers 
             /*sz-1 so as not to send most recent peer*/
             /*TODO: is this correct?*/
+            #ifdef DEBUG
+            puts("executing peer pass from accept_connections");
+            #endif
             snd_msg(pl->l_a, pl->sz-1, PEER_PASS, NULL, 0, strdup(addr));
             /*snd_msg(pl->l_a, pl->sz, PEER_PASS, NULL, 0, strdup(addr));*/
             // TODO: alert global peers - shouldn't have to because my local peers will alert their locals, etc.
             // TODO: pass existing peers along to new peer
             #ifdef DEBUG
-            printf("sending %i peer passes to new peer\n", pl->sz);
+            printf("sending %i peer passes to new peer from accept connections\n", pl->sz);
             #endif
             for(int i = 0; i < pl->sz; ++i){
                   snd_msg(&pl->l_a[pl->sz-1], 1, PEER_PASS, NULL, 0, pl->l_a[i].clnt_info[1]);
@@ -195,12 +198,17 @@ void read_messages_pth(struct read_msg_arg* rma){
                   struct glob_peer_list_entry* route = glob_peer_route(pl, recp, rma->index, &has_route);
                   /*if(pl->sz == 1 || (route && has_route))continue;*/
                   if(route && has_route)continue;
+                  #ifdef DEBUG
+                  if(!route)puts("new user found");
+                  else if(!has_route)puts("new route to existing user found");
+                  #endif
                   // if we have the global peer already but this PEER_PASS is coming from a different local peer
                   // we'll want to record this new possible route in gpl->dir_p
                   /*check if rma_index is in dir_p if it is, continue, else, add this new shit to the existing gpl[i]*/
                   /*if(has_peer(pl, recp) && rma->index == next_in_line(pl, recp));*/
                   // continuing if we already have recp in 
                   // we could be here if(route && !has_route)
+                  // messages with my own mac are passing through
                   if(!route)printf("new [%sglb%s] user: %s has joined %s~the network~%s\n", ANSI_GRE, ANSI_NON, recp, ANSI_RED, ANSI_NON);
                   // we're sending msg to who we received it from - should we adjust?
                   // what should our terminating criteria be?
