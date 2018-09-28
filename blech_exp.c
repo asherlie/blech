@@ -144,8 +144,12 @@ void accept_connections(struct peer_list* pl){
             snd_msg(pl->l_a, pl->sz, PEER_PASS, NULL, 0, strdup(addr));
             // TODO: alert global peers - shouldn't have to because my local peers will alert their locals, etc.
             // TODO: pass existing peers along to new peer
+            #ifdef DEBUG
+            printf("sending %i peer passes to new peer\n", pl->sz);
+            #endif
             for(int i = 0; i < pl->sz; ++i){
                   snd_msg(&pl->l_a[pl->sz-1], 1, PEER_PASS, NULL, 0, pl->l_a[i].clnt_info[1]);
+                  usleep(1000);
             }
             memset(name, 0, sizeof(name));
             memset(addr, 0, sizeof(addr));
