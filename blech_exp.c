@@ -88,6 +88,7 @@ int snd_msg(struct loc_addr_clnt_num* la, int n_peers, int msg_type, char* msg, 
                         return -1;
                   }
                   /*MAC takes up 17 chars*/
+                  // MAC is a good thing to have because it's guaranteed unique
                   send(la[i].clnt_num, recp, 18, 0L);
             }
             // msg_sz is used to indicate peer number in a PEER_PASS
@@ -101,6 +102,8 @@ int snd_msg(struct loc_addr_clnt_num* la, int n_peers, int msg_type, char* msg, 
                   // this is obselete with current implementation
                   // TODO: implement passing along of full path
                   /*send(la[i].clnt_num, &msg_sz, 4, 0L);*/
+                  // when a PEER_PASS is sent, msg must be a hostname - for now assuming sizeof 30, allow for msg_sz later
+                  send(la[i].clnt_num, msg, 30, 0L);
                   send(la[i].clnt_num, recp, 18, 0L);
             }
             else send(la[i].clnt_num, msg, msg_sz, 0L);
@@ -143,7 +146,7 @@ void accept_connections(struct peer_list* pl){
             #ifdef DEBUG
             puts("executing peer pass from accept_connections");
             #endif
-            snd_msg(pl->l_a, pl->sz-1, PEER_PASS, NULL, 0, strdup(addr));
+            snd_msg(pl->l_a, pl->sz-1, PEER_PASS, name, 30, strdup(addr));
             /*snd_msg(pl->l_a, pl->sz, PEER_PASS, NULL, 0, strdup(addr));*/
             // TODO: alert global peers - shouldn't have to because my local peers will alert their locals, etc.
             // TODO: pass existing peers along to new peer
@@ -151,7 +154,7 @@ void accept_connections(struct peer_list* pl){
             printf("sending %i peer passes to new peer from accept connections\n", pl->sz);
             #endif
             for(int i = 0; i < pl->sz-1; ++i){
-                  snd_msg(&pl->l_a[pl->sz-1], 1, PEER_PASS, NULL, 0, pl->l_a[i].clnt_info[1]);
+                  snd_msg(&pl->l_a[pl->sz-1], 1, PEER_PASS, pl->l_a[i].clnt_info[0], 30, pl->l_a[i].clnt_info[1]);
                   usleep(1000);
             }
             memset(name, 0, sizeof(name));
@@ -167,6 +170,7 @@ void read_messages_pth(struct read_msg_arg* rma){
       #endif
       char buf[1024] = {0};
       char recp[18] = {0};
+      char name[30] = {0};
       int msg_type = -1;
       int bytes_read;
       struct loc_addr_clnt_num* la_r = NULL;
@@ -207,21 +211,22 @@ void read_messages_pth(struct read_msg_arg* rma){
                   /*check if rma_index is in dir_p if it is, continue, else, add this new shit to the existing gpl[i]*/
                   /*if(has_peer(pl, recp) && rma->index == next_in_line(pl, recp));*/
                   // continuing if we already have recp in 
+                  bytes_read = read(la->clnt_num, name, 30);
                   bytes_read = read(la->clnt_num, recp, 18);
                   la_r = find_peer(pl, recp);
                   // we could be here if(route && !has_route)
                   // messages with my own mac are passing through
-                  if(!route)printf("new [%sglb%s] user: %s has joined %s~the network~%s\n", ANSI_GRE, ANSI_NON, recp, ANSI_RED, ANSI_NON);
+                  if(!route)printf("new [%sglb%s] peer: %s@%s has joined %s~the network~%s\n", ANSI_GRE, ANSI_NON, name, recp, ANSI_RED, ANSI_NON);
                   // we're sending msg to who we received it from - should we adjust?
                   // what should our terminating criteria be?
                   /*snd_msg(pl->l_a, pl->sz, PEER_PASS, NULL, 0, recp);*/
                   // doing some quick maths to avoid resending to our sender
-                  snd_msg(pl->l_a, rma->index, PEER_PASS, NULL, 0, recp);
-                  snd_msg(pl->l_a+rma->index+1, pl->sz-rma->index+1, PEER_PASS, NULL, 0, recp);
+                  snd_msg(pl->l_a, rma->index, PEER_PASS, name, 30, recp);
+                  snd_msg(pl->l_a+rma->index+1, pl->sz-rma->index+1, PEER_PASS, name, 30, recp);
                   // could do the below to skip user that sent to me
                   // all we need to know for route is who sent us this peer information
                   if(route)gple_add_route_entry(route, rma->index);
-                  else gple_add_route_entry(gpl_add(pl->gpl, NULL, recp), rma->index);
+                  else gple_add_route_entry(gpl_add(pl->gpl, name, recp), rma->index);
                   // TODO: implement full route recording
                   // i'll need to pass along an int* increasing in size by 1 each node
                   /*gple_add_route_entry(gpl_add(pl->gpl, NULL, recp), i);*/
