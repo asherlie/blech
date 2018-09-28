@@ -150,7 +150,7 @@ void accept_connections(struct peer_list* pl){
             #ifdef DEBUG
             printf("sending %i peer passes to new peer from accept connections\n", pl->sz);
             #endif
-            for(int i = 0; i < pl->sz; ++i){
+            for(int i = 0; i < pl->sz-1; ++i){
                   snd_msg(&pl->l_a[pl->sz-1], 1, PEER_PASS, NULL, 0, pl->l_a[i].clnt_info[1]);
                   usleep(1000);
             }
