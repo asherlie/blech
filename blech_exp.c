@@ -111,7 +111,8 @@ int snd_msg(struct loc_addr_clnt_num* la, int n_peers, int msg_type, char* msg, 
             // to know when to stop passing - are users aware of their mac addresses
             // as of now, passing will continue until the message is sent to someone with just one peer
             // which will be problematic when it comes to circular graphs
-            if(msg_type == MSG_SND || msg_type == MSG_BLAST)printf("sent message \"%s\" to peer #%i\n", msg, i);
+            if(msg_type == MSG_SND || msg_type == MSG_BLAST)printf("me: \"%s\"\n", msg);
+            /*printf("sent message \"%s\" to peer #%i\n", msg, i);*/
       }
       return n_peers;
 }
@@ -184,7 +185,11 @@ void read_messages_pth(struct read_msg_arg* rma){
             /*listen(pl->l_a[i].clnt_num, 1);*/
             // first reading message type byte
             read(la->clnt_num, &msg_type, 4);
-            // TODO: include MSG_SND in this - messages should propogate in the same way
+            if(msg_type == PEER_PASS)bytes_read = read(la->clnt_num, name, 30);
+            if(msg_type == PEER_PASS || msg_type == MSG_PASS){
+                  bytes_read = read(la->clnt_num, recp, 18);
+                  la_r = find_peer(pl, recp);
+            }
             if(msg_type == PEER_PASS){
                   #ifdef DEBUG
                   printf("received a PEER_PASS msg from %s@%s\n", la->clnt_info[0], la->clnt_info[1]);
@@ -212,12 +217,6 @@ void read_messages_pth(struct read_msg_arg* rma){
                   #endif
                   // if we have the global peer already but this PEER_PASS is coming from a different local peer
                   // we'll want to record this new possible route in gpl->dir_p
-                  // continuing if we already have recp in 
-                  bytes_read = read(la->clnt_num, name, 30);
-                  bytes_read = read(la->clnt_num, recp, 18);
-                  la_r = find_peer(pl, recp);
-                  // we could be here if(route && !has_route)
-                  // messages with my own mac are passing through
                   if(!route)printf("new [%sglb%s] peer: %s@%s has joined %s~the network~%s\n", ANSI_GRE, ANSI_NON, name, recp, ANSI_RED, ANSI_NON);
                   /*snd_msg(pl->l_a, pl->sz, PEER_PASS, NULL, 0, recp);*/
                   // doing some quick maths to avoid resending to our sender
@@ -227,15 +226,19 @@ void read_messages_pth(struct read_msg_arg* rma){
                   if(route)gple_add_route_entry(route, rma->index);
                   else gple_add_route_entry(gpl_add(pl->gpl, name, recp), rma->index);
                   // TODO: implement full route recording
+                  continue;
             }
-            if(msg_type == MSG_SND || msg_type == MSG_PASS){
-                  bytes_read = read(la->clnt_num, buf, sizeof(buf));
-                  if(MSG_SND && bytes_read <= 0){
+            bytes_read = read(la->clnt_num, buf, sizeof(buf));
+            if((msg_type == MSG_SND || msg_type == MSG_BLAST)){
+                  if(bytes_read <= 0){
                         puts("cannot print message");
                         continue;
                   }
-                  else if(msg_type == MSG_SND || msg_type == MSG_BLAST)printf("%s: %s\n", la->clnt_info[0], buf);
+                  printf("%s: %s\n", la->clnt_info[0], buf);
+            }
+            if(msg_type == MSG_SND || msg_type == MSG_PASS || msg_type == MSG_BLAST){
                   // if we finally found recp
+                  // la_r will only be !NULL if MSG_PASS - if we have the recipient as a local peer
                   if(la_r)snd_msg(la_r, 1, MSG_SND, buf, bytes_read, NULL);
                   else if(msg_type == MSG_PASS || msg_type == MSG_BLAST){
                         /*snd_msg(pl->l_a, pl->sz, MSG_PASS, buf, bytes_read, recp);*/
