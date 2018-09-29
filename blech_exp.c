@@ -111,7 +111,7 @@ int snd_msg(struct loc_addr_clnt_num* la, int n_peers, int msg_type, char* msg, 
             // to know when to stop passing - are users aware of their mac addresses
             // as of now, passing will continue until the message is sent to someone with just one peer
             // which will be problematic when it comes to circular graphs
-            if(msg_type == MSG_SND || msg_type == MSG_BLAST)printf("me: \"%s\"\n", msg);
+            if(msg_type == MSG_SND || msg_type == MSG_BLAST)printf("%sme%s: \"%s\"\n", ANSI_BLU, ANSI_NON, msg);
             /*printf("sent message \"%s\" to peer #%i\n", msg, i);*/
       }
       return n_peers;
@@ -242,8 +242,15 @@ void read_messages_pth(struct read_msg_arg* rma){
                   if(la_r)snd_msg(la_r, 1, MSG_SND, buf, bytes_read, NULL);
                   else if(msg_type == MSG_PASS || msg_type == MSG_BLAST){
                         /*snd_msg(pl->l_a, pl->sz, MSG_PASS, buf, bytes_read, recp);*/
+                        #ifdef DEBUG
+                        puts("sending first half of pass or blast messages");
+                        #endif
                         snd_msg(pl->l_a, rma->index, msg_type, buf, bytes_read, recp);
-                        snd_msg(pl->l_a+rma->index+1, pl->sz-rma->index+1, msg_type, buf, bytes_read, recp);
+                        #ifdef DEBUG
+                        puts("sending second half of pass or blast messages");
+                        #endif
+                        /*snd_msg(pl->l_a+rma->index+1, pl->sz-rma->index+1, msg_type, buf, bytes_read, recp);*/
+                        snd_msg(pl->l_a+rma->index+1, pl->sz-rma->index, msg_type, buf, bytes_read, recp);
                   }
                   memset(buf, 0, bytes_read);
             }
