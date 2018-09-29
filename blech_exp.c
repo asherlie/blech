@@ -107,7 +107,11 @@ int snd_msg(struct loc_addr_clnt_num* la, int n_peers, int msg_type, char* msg, 
                   send(la[i].clnt_num, recp, 18, 0L);
             }
             else send(la[i].clnt_num, msg, msg_sz, 0L);
-            if(msg_type == MSG_SND)printf("sent message \"%s\" to peer #%i\n", msg, i);
+            // TODO: possibly send recp info in blast mode, which is being passed in anyway
+            // to know when to stop passing - are users aware of their mac addresses
+            // as of now, passing will continue until the message is sent to someone with just one peer
+            // which will be problematic when it comes to circular graphs
+            if(msg_type == MSG_SND || msg_type == MSG_BLAST)printf("sent message \"%s\" to peer #%i\n", msg, i);
       }
       return n_peers;
 }
@@ -115,7 +119,7 @@ int snd_msg(struct loc_addr_clnt_num* la, int n_peers, int msg_type, char* msg, 
 int snd_txt_to_peers(struct peer_list* pl, char* msg, int msg_sz){
       // TODO: snd_txt_to_peers should use a mixture between PEER_PASS and MSG_PASS
       // TODO: should PEER_PASS and MSG_PASS be combined?
-      return snd_msg(pl->l_a, pl->sz, MSG_SND, msg, msg_sz, NULL);
+      return snd_msg(pl->l_a, pl->sz, MSG_BLAST, msg, msg_sz, NULL);
 }
 
 void accept_connections(struct peer_list* pl){
@@ -208,8 +212,6 @@ void read_messages_pth(struct read_msg_arg* rma){
                   #endif
                   // if we have the global peer already but this PEER_PASS is coming from a different local peer
                   // we'll want to record this new possible route in gpl->dir_p
-                  /*check if rma_index is in dir_p if it is, continue, else, add this new shit to the existing gpl[i]*/
-                  /*if(has_peer(pl, recp) && rma->index == next_in_line(pl, recp));*/
                   // continuing if we already have recp in 
                   bytes_read = read(la->clnt_num, name, 30);
                   bytes_read = read(la->clnt_num, recp, 18);
@@ -217,19 +219,14 @@ void read_messages_pth(struct read_msg_arg* rma){
                   // we could be here if(route && !has_route)
                   // messages with my own mac are passing through
                   if(!route)printf("new [%sglb%s] peer: %s@%s has joined %s~the network~%s\n", ANSI_GRE, ANSI_NON, name, recp, ANSI_RED, ANSI_NON);
-                  // we're sending msg to who we received it from - should we adjust?
-                  // what should our terminating criteria be?
                   /*snd_msg(pl->l_a, pl->sz, PEER_PASS, NULL, 0, recp);*/
                   // doing some quick maths to avoid resending to our sender
                   snd_msg(pl->l_a, rma->index, PEER_PASS, name, 30, recp);
                   snd_msg(pl->l_a+rma->index+1, pl->sz-rma->index+1, PEER_PASS, name, 30, recp);
-                  // could do the below to skip user that sent to me
                   // all we need to know for route is who sent us this peer information
                   if(route)gple_add_route_entry(route, rma->index);
                   else gple_add_route_entry(gpl_add(pl->gpl, name, recp), rma->index);
                   // TODO: implement full route recording
-                  // i'll need to pass along an int* increasing in size by 1 each node
-                  /*gple_add_route_entry(gpl_add(pl->gpl, NULL, recp), i);*/
             }
             if(msg_type == MSG_SND || msg_type == MSG_PASS){
                   bytes_read = read(la->clnt_num, buf, sizeof(buf));
@@ -237,10 +234,14 @@ void read_messages_pth(struct read_msg_arg* rma){
                         puts("cannot print message");
                         continue;
                   }
-                  else if(msg_type == MSG_SND)printf("%s: %s\n", la->clnt_info[0], buf);
+                  else if(msg_type == MSG_SND || msg_type == MSG_BLAST)printf("%s: %s\n", la->clnt_info[0], buf);
                   // if we finally found recp
                   if(la_r)snd_msg(la_r, 1, MSG_SND, buf, bytes_read, NULL);
-                  else if(msg_type == MSG_PASS)snd_msg(pl->l_a, pl->sz, MSG_PASS, buf, bytes_read, recp);
+                  else if(msg_type == MSG_PASS || msg_type == MSG_BLAST){
+                        /*snd_msg(pl->l_a, pl->sz, MSG_PASS, buf, bytes_read, recp);*/
+                        snd_msg(pl->l_a, rma->index, msg_type, buf, bytes_read, recp);
+                        snd_msg(pl->l_a+rma->index+1, pl->sz-rma->index+1, msg_type, buf, bytes_read, recp);
+                  }
                   memset(buf, 0, bytes_read);
             }
       }
@@ -308,8 +309,8 @@ int main(int argc, char** argv){
                         puts("enter an in range peer number");
                         continue;
                   }
-                  char snd[] = "test pm";
-                  snd_msg(la, 1, msg_code, snd, 8, recp);
+                  read = getline(&ln, &sz, stdin);
+                  snd_msg(la, 1, msg_code, ln, read, recp);
             }
             else snd_txt_to_peers(pl, ln, read);
       }
