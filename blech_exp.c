@@ -243,14 +243,18 @@ void read_messages_pth(struct read_msg_arg* rma){
                   else if(msg_type == MSG_PASS || msg_type == MSG_BLAST){
                         /*snd_msg(pl->l_a, pl->sz, MSG_PASS, buf, bytes_read, recp);*/
                         #ifdef DEBUG
+                        printf("read index: %i, n local peers: %i\n", rma->index, pl->sz);
                         puts("sending first half of pass or blast messages");
+                        printf("snd_msg(pl->l_a, %i, %i, buf, bytes, recp)\n", rma->index, msg_type);
                         #endif
                         snd_msg(pl->l_a, rma->index, msg_type, buf, bytes_read, recp);
                         #ifdef DEBUG
                         puts("sending second half of pass or blast messages");
+                        printf("snd_msg(pl->l_a+%i, %i, %i, buf, bytes, recp)\n", rma->index+1, pl->sz-rma->index-1, msg_type);
                         #endif
+                        // TODO: which is accurate?
                         /*snd_msg(pl->l_a+rma->index+1, pl->sz-rma->index+1, msg_type, buf, bytes_read, recp);*/
-                        snd_msg(pl->l_a+rma->index+1, pl->sz-rma->index, msg_type, buf, bytes_read, recp);
+                        snd_msg(pl->l_a+rma->index+1, pl->sz-rma->index-1, msg_type, buf, bytes_read, recp);
                   }
                   memset(buf, 0, bytes_read);
             }
