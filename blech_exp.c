@@ -111,20 +111,16 @@ int snd_msg(struct loc_addr_clnt_num* la, int n_peers, int msg_type, char* msg, 
             // to know when to stop passing - are users aware of their mac addresses
             // as of now, passing will continue until the message is sent to someone with just one peer
             // which will be problematic when it comes to circular graphs
-            /*if(msg_type == MSG_SND || msg_type == MSG_BLAST)printf("%sme%s: \"%s\"\n", ANSI_BLU, ANSI_NON, msg);*/
             // recp will be NULL unless it's the last step of a MSG_PASS
             if(msg_type == MSG_SND){
                   // we don't want to print anything if a message is passing through us
                   if(!recp)printf("%sme%s: \"%s\"\n", ANSI_BLU, ANSI_NON, msg);
             }
-            /*printf("sent message \"%s\" to peer #%i\n", msg, i);*/
       }
       return n_peers;
 }
 
 int snd_txt_to_peers(struct peer_list* pl, char* msg, int msg_sz){
-      // TODO: snd_txt_to_peers should use a mixture between PEER_PASS and MSG_PASS
-      // TODO: should PEER_PASS and MSG_PASS be combined?
       printf("%sme%s: \"%s\"\n", ANSI_BLU, ANSI_NON, msg);
       return snd_msg(pl->l_a, pl->sz, MSG_BLAST, msg, msg_sz, NULL, NULL);
 }
@@ -141,13 +137,8 @@ void accept_connections(struct peer_list* pl){
             clnt = accept(pl->local_sock, (struct sockaddr *)&rem_addr, &opt);
             // as soon as a new client is added, wait for them to send their desired name
             read(clnt, name, 30);
-            /*send(clnt, pl->name, 30....*/
             send(clnt, pl->name, 30, 0L);
             ba2str(&rem_addr.rc_bdaddr, addr);
-            /*
-             *if(hci_read_remote_name(clnt, &rem_addr.rc_bdaddr, sizeof(name), name, 0) < 0)
-             *      strcpy(name, "[unknown]");
-             */
             #ifdef DEBUG
             printf("accepted connection from %s@%s\n", name, addr);
             #endif
@@ -158,15 +149,11 @@ void accept_connections(struct peer_list* pl){
             // each time a peer is added, we need to send updated peer information to all peers
             pthread_mutex_unlock(&pm);
             // alert my local peers 
-            /*sz-1 so as not to send most recent peer*/
-            /*TODO: is this correct?*/
+            // sz-1 so as not to send most recent peer
             #ifdef DEBUG
             puts("executing peer pass from accept_connections");
             #endif
             snd_msg(pl->l_a, pl->sz-1, PEER_PASS, name, 30, strdup(addr), NULL);
-            /*snd_msg(pl->l_a, pl->sz, PEER_PASS, NULL, 0, strdup(addr));*/
-            // TODO: alert global peers - shouldn't have to because my local peers will alert their locals, etc.
-            // TODO: pass existing peers along to new peer
             #ifdef DEBUG
             printf("sending %i peer passes to new peer from accept connections\n", pl->sz);
             #endif
@@ -181,7 +168,6 @@ void accept_connections(struct peer_list* pl){
 
 // TODO: MSG_PASS messages should be printed by read_messages_pth with a flag to propogate mass messages
 void read_messages_pth(struct read_msg_arg* rma){
-/*void read_messages_pth(struct loc_addr_clnt_num* la){*/
       #ifdef DEBUG
       puts("READ MESSAGE THREAD STARTED");
       #endif
@@ -206,22 +192,8 @@ void read_messages_pth(struct read_msg_arg* rma){
                   #ifdef DEBUG
                   printf("received a PEER_PASS msg from %s@%s\n", la->clnt_info[0], la->clnt_info[1]);
                   #endif
-                  /*int route_ind = -1;*/
-                  /*read(pl->l_a[i].clnt_num, &route_ind, 1);*/
-                  // pl->l_a[i] just sent me an integer representing the index of a peer they just added
-                  /*read(pl->l_a[i].clnt_num, recp, 18);*/
-                  // if this is our first local peer, record recp as our own local mac str
-                  // TODO: figure out what to do with this - as of now info about me is sent
-                  // this is not strict enough
-                  // this passes when we make one connection and doesn't let us accept new peer info
-                  /*if(pl->sz == 1 && !pl->gpl->sz)strncpy(pl->local_mac, recp, 18);*/
-                  // if we've already recvd this information, don't record or pass it along again
-                  // if pl->sz == 2 && pl->gpl is 0, they're sending my info back to me as an initial PEER_PASS
-                  // if pl->sz == 1, we have nowhere to pass peers because we've just received this PEER_PASS from peer 0
-                  /*if(pl->sz == 1 || has_peer(pl, recp))continue;*/
                   _Bool has_route;
                   struct glob_peer_list_entry* route = glob_peer_route(pl, recp, rma->index, &has_route);
-                  /*if(pl->sz == 1 || (route && has_route))continue;*/
                   if(route && has_route)continue;
                   #ifdef DEBUG
                   if(!route)puts("new user found");
@@ -230,7 +202,6 @@ void read_messages_pth(struct read_msg_arg* rma){
                   // if we have the global peer already but this PEER_PASS is coming from a different local peer
                   // we'll want to record this new possible route in gpl->dir_p
                   if(!route)printf("new [%sglb%s] peer: %s@%s has joined %s~the network~%s\n", ANSI_GRE, ANSI_NON, name, recp, ANSI_RED, ANSI_NON);
-                  /*snd_msg(pl->l_a, pl->sz, PEER_PASS, NULL, 0, recp);*/
                   // doing some quick maths to avoid resending to our sender
                   snd_msg(pl->l_a, rma->index, PEER_PASS, name, 30, recp, NULL);
                   snd_msg(pl->l_a+rma->index+1, pl->sz-rma->index+1, PEER_PASS, name, 30, recp, NULL);
@@ -246,7 +217,6 @@ void read_messages_pth(struct read_msg_arg* rma){
                         puts("cannot print message");
                         continue;
                   }
-                  // print T
                   #ifdef DEBUG
                   if(msg_type == FROM_OTHR)printf("received FROM_OTHR message from \"%s\"\n", name);
                   #endif
@@ -256,7 +226,6 @@ void read_messages_pth(struct read_msg_arg* rma){
                   // if we finally found recp
                   // la_r will only be !NULL if MSG_PASS - if we have the recipient as a local peer
                   if(la_r){
-                        /*snd_msg(la_r, 1, MSG_SND, buf, bytes_read, orig_sender);*/
                         snd_msg(la_r, 1, FROM_OTHR, buf, bytes_read, NULL, name);
                   }
                   else if(msg_type == MSG_PASS || msg_type == MSG_BLAST){
@@ -272,12 +241,10 @@ void read_messages_pth(struct read_msg_arg* rma){
                         puts("sending second half of pass or blast messages");
                         printf("snd_msg(pl->l_a+%i, %i, %i, buf, bytes, recp)\n", rma->index+1, pl->sz-rma->index-1, msg_type);
                         #endif
-                        // TODO: which is accurate?
-                        /*snd_msg(pl->l_a+rma->index+1, pl->sz-rma->index+1, msg_type, buf, bytes_read, recp);*/
                         snd_msg(pl->l_a+rma->index+1, pl->sz-rma->index-1, msg_type, buf, bytes_read, recp, name);
                   }
-                  memset(buf, 0, bytes_read);
             }
+            memset(buf, 0, bytes_read);
             memset(name, 0, 30);
       }
 }
@@ -309,7 +276,6 @@ int main(int argc, char** argv){
                         char p_name[30] = {0};
                         read(s, p_name, 30);
                         struct sockaddr_rc la;
-                        /*pl_add(pl, la, s, dname, mac);*/
                         pl_add(pl, la, s, p_name, mac);
                   }
                   else puts("failed to establish a connection");
