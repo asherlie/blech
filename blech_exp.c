@@ -143,6 +143,8 @@ void accept_connections(struct peer_list* pl){
             clnt = accept(pl->local_sock, (struct sockaddr *)&rem_addr, &opt);
             // as soon as a new client is added, wait for them to send their desired name
             read(clnt, name, 30);
+            /*send(clnt, pl->name, 30....*/
+            send(clnt, pl->name, 30, 0L);
             ba2str(&rem_addr.rc_bdaddr, addr);
             /*
              *if(hci_read_remote_name(clnt, &rem_addr.rc_bdaddr, sizeof(name), name, 0) < 0)
@@ -300,15 +302,18 @@ int main(int argc, char** argv){
             printf("looking for peer matching search string: \"%s\"\n", argv[1]);
             bdaddr_t* bd = get_bdaddr(argv[1], &dname, &mac);
             if(bd){
-                  printf("attempting to connect to peer: %s...", dname);
+                  printf("attempting to connect to peer with hostname: %s...", dname);
                   int s;
                   bound = bind_to_bdaddr(bd, &s);
                   if(bound == 0){
                         puts("succesfully established a connection");
                         printf("you have joined %s~the network~%s\n", ANSI_RED, ANSI_NON);
                         send(s, pl->name, 30, 0L);
+                        char p_name[30] = {0};
+                        read(s, p_name, 30);
                         struct sockaddr_rc la;
-                        pl_add(pl, la, s, dname, mac);
+                        /*pl_add(pl, la, s, dname, mac);*/
+                        pl_add(pl, la, s, p_name, mac);
                   }
                   else puts("failed to establish a connection");
             }
