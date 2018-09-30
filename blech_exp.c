@@ -114,14 +114,14 @@ int snd_msg(struct loc_addr_clnt_num* la, int n_peers, int msg_type, char* msg, 
             // recp will be NULL unless it's the last step of a MSG_PASS
             if(msg_type == MSG_SND){
                   // we don't want to print anything if a message is passing through us
-                  if(!recp)printf("%sme%s: \"%s\"\n", ANSI_BLU, ANSI_NON, msg);
+                  if(!recp)printf("%sme%s: \"%s\"\n", ANSI_MGNTA, ANSI_NON, msg);
             }
       }
       return n_peers;
 }
 
 int snd_txt_to_peers(struct peer_list* pl, char* msg, int msg_sz){
-      printf("%sme%s: \"%s\"\n", ANSI_BLU, ANSI_NON, msg);
+      printf("%sme%s: \"%s\"\n", ANSI_MGNTA, ANSI_NON, msg);
       return snd_msg(pl->l_a, pl->sz, MSG_BLAST, msg, msg_sz, NULL, NULL);
 }
 
@@ -220,7 +220,8 @@ void read_messages_pth(struct read_msg_arg* rma){
                   #ifdef DEBUG
                   if(msg_type == FROM_OTHR)printf("received FROM_OTHR message from \"%s\"\n", name);
                   #endif
-                  printf("%s: %s\n", (msg_type == FROM_OTHR) ? name : la->clnt_info[0], buf);
+                  // are msg blasts accurate? is from_other used even with blasts to local peers
+                  printf("%s%s%s: %s\n", (msg_type == MSG_SND) ? ANSI_BLU : ANSI_GRE, (msg_type == FROM_OTHR) ? name : la->clnt_info[0], ANSI_NON, buf);
             }
             if(msg_type == MSG_SND || msg_type == MSG_PASS || msg_type == MSG_BLAST){
                   // if we finally found recp

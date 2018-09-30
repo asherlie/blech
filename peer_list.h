@@ -10,10 +10,11 @@
 
 #include "blech.h"
 
-#define ANSI_RED "\x1B[31m"
-#define ANSI_NON "\x1b[0m"
-#define ANSI_GRE "\x1b[32m"
-#define ANSI_BLU "\x1b[34m"
+#define ANSI_RED   "\x1B[31m"
+#define ANSI_NON   "\x1b[0m"
+#define ANSI_GRE   "\x1b[32m"
+#define ANSI_BLU   "\x1b[34m"
+#define ANSI_MGNTA "\x1b[35m"
 
 
 struct glob_peer_list_entry{
