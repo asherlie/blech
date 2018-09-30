@@ -70,7 +70,8 @@ struct loc_addr_clnt_num* find_peer(struct peer_list* pl, char* mac){
       return NULL;
 }
 
-int snd_msg(struct loc_addr_clnt_num* la, int n_peers, int msg_type, char* msg, int msg_sz, char* recp){
+// sndr is a 30 byte string
+int snd_msg(struct loc_addr_clnt_num* la, int n_peers, int msg_type, char* msg, int msg_sz, char* recp, char* sndr){
       #ifdef DEBUG
       printf("sending message of type: %i to %i peers recp param: %s\n", msg_type, n_peers, recp);
       #endif
@@ -90,6 +91,7 @@ int snd_msg(struct loc_addr_clnt_num* la, int n_peers, int msg_type, char* msg, 
                   /*MAC takes up 17 chars*/
                   // MAC is a good thing to have because it's guaranteed unique
                   send(la[i].clnt_num, recp, 18, 0L);
+                  send(la[i].clnt_num, sndr, 30, 0L);
             }
             // msg_sz is used to indicate peer number in a PEER_PASS
             // each index in `route` refers to local peer number
@@ -103,15 +105,20 @@ int snd_msg(struct loc_addr_clnt_num* la, int n_peers, int msg_type, char* msg, 
                   // TODO: implement passing along of full path
                   /*send(la[i].clnt_num, &msg_sz, 4, 0L);*/
                   // when a PEER_PASS is sent, msg must be a hostname - for now assuming sizeof 30, allow for msg_sz later
-                  send(la[i].clnt_num, msg, 30, 0L);
                   send(la[i].clnt_num, recp, 18, 0L);
+                  send(la[i].clnt_num, msg, 30, 0L);
             }
             else send(la[i].clnt_num, msg, msg_sz, 0L);
             // TODO: possibly send recp info in blast mode, which is being passed in anyway
             // to know when to stop passing - are users aware of their mac addresses
             // as of now, passing will continue until the message is sent to someone with just one peer
             // which will be problematic when it comes to circular graphs
-            if(msg_type == MSG_SND || msg_type == MSG_BLAST)printf("%sme%s: \"%s\"\n", ANSI_BLU, ANSI_NON, msg);
+            /*if(msg_type == MSG_SND || msg_type == MSG_BLAST)printf("%sme%s: \"%s\"\n", ANSI_BLU, ANSI_NON, msg);*/
+            // recp will be NULL unless it's the last step of a MSG_PASS
+            if(msg_type == MSG_SND){
+                  // we don't want to print anything if a message is passing through us
+                  if(!recp)printf("%sme%s: \"%s\"\n", ANSI_BLU, ANSI_NON, msg);
+            }
             /*printf("sent message \"%s\" to peer #%i\n", msg, i);*/
       }
       return n_peers;
@@ -120,7 +127,8 @@ int snd_msg(struct loc_addr_clnt_num* la, int n_peers, int msg_type, char* msg, 
 int snd_txt_to_peers(struct peer_list* pl, char* msg, int msg_sz){
       // TODO: snd_txt_to_peers should use a mixture between PEER_PASS and MSG_PASS
       // TODO: should PEER_PASS and MSG_PASS be combined?
-      return snd_msg(pl->l_a, pl->sz, MSG_BLAST, msg, msg_sz, NULL);
+      printf("%sme%s: \"%s\"\n", ANSI_BLU, ANSI_NON, msg);
+      return snd_msg(pl->l_a, pl->sz, MSG_BLAST, msg, msg_sz, NULL, NULL);
 }
 
 void accept_connections(struct peer_list* pl){
@@ -151,7 +159,7 @@ void accept_connections(struct peer_list* pl){
             #ifdef DEBUG
             puts("executing peer pass from accept_connections");
             #endif
-            snd_msg(pl->l_a, pl->sz-1, PEER_PASS, name, 30, strdup(addr));
+            snd_msg(pl->l_a, pl->sz-1, PEER_PASS, name, 30, strdup(addr), NULL);
             /*snd_msg(pl->l_a, pl->sz, PEER_PASS, NULL, 0, strdup(addr));*/
             // TODO: alert global peers - shouldn't have to because my local peers will alert their locals, etc.
             // TODO: pass existing peers along to new peer
@@ -159,7 +167,7 @@ void accept_connections(struct peer_list* pl){
             printf("sending %i peer passes to new peer from accept connections\n", pl->sz);
             #endif
             for(int i = 0; i < pl->sz-1; ++i){
-                  snd_msg(&pl->l_a[pl->sz-1], 1, PEER_PASS, pl->l_a[i].clnt_info[0], 30, pl->l_a[i].clnt_info[1]);
+                  snd_msg(&pl->l_a[pl->sz-1], 1, PEER_PASS, pl->l_a[i].clnt_info[0], 30, pl->l_a[i].clnt_info[1], NULL);
                   usleep(1000);
             }
             memset(name, 0, sizeof(name));
@@ -185,9 +193,9 @@ void read_messages_pth(struct read_msg_arg* rma){
             /*listen(pl->l_a[i].clnt_num, 1);*/
             // first reading message type byte
             read(la->clnt_num, &msg_type, 4);
-            if(msg_type == PEER_PASS)bytes_read = read(la->clnt_num, name, 30);
             if(msg_type == PEER_PASS || msg_type == MSG_PASS){
                   bytes_read = read(la->clnt_num, recp, 18);
+                  bytes_read = read(la->clnt_num, name, 30);
                   la_r = find_peer(pl, recp);
             }
             if(msg_type == PEER_PASS){
@@ -220,8 +228,8 @@ void read_messages_pth(struct read_msg_arg* rma){
                   if(!route)printf("new [%sglb%s] peer: %s@%s has joined %s~the network~%s\n", ANSI_GRE, ANSI_NON, name, recp, ANSI_RED, ANSI_NON);
                   /*snd_msg(pl->l_a, pl->sz, PEER_PASS, NULL, 0, recp);*/
                   // doing some quick maths to avoid resending to our sender
-                  snd_msg(pl->l_a, rma->index, PEER_PASS, name, 30, recp);
-                  snd_msg(pl->l_a+rma->index+1, pl->sz-rma->index+1, PEER_PASS, name, 30, recp);
+                  snd_msg(pl->l_a, rma->index, PEER_PASS, name, 30, recp, NULL);
+                  snd_msg(pl->l_a+rma->index+1, pl->sz-rma->index+1, PEER_PASS, name, 30, recp, NULL);
                   // all we need to know for route is who sent us this peer information
                   if(route)gple_add_route_entry(route, rma->index);
                   else gple_add_route_entry(gpl_add(pl->gpl, name, recp), rma->index);
@@ -229,35 +237,41 @@ void read_messages_pth(struct read_msg_arg* rma){
                   continue;
             }
             bytes_read = read(la->clnt_num, buf, sizeof(buf));
-            if((msg_type == MSG_SND || msg_type == MSG_BLAST)){
+            if((msg_type == FROM_OTHR || msg_type == MSG_SND || msg_type == MSG_BLAST)){
                   if(bytes_read <= 0){
                         puts("cannot print message");
                         continue;
                   }
-                  printf("%s: %s\n", la->clnt_info[0], buf);
+                  // print T
+                  printf("%s: %s\n", (msg_type == FROM_OTHR) ? name : la->clnt_info[0], buf);
             }
             if(msg_type == MSG_SND || msg_type == MSG_PASS || msg_type == MSG_BLAST){
                   // if we finally found recp
                   // la_r will only be !NULL if MSG_PASS - if we have the recipient as a local peer
-                  if(la_r)snd_msg(la_r, 1, MSG_SND, buf, bytes_read, NULL);
+                  if(la_r){
+                        /*snd_msg(la_r, 1, MSG_SND, buf, bytes_read, orig_sender);*/
+                        snd_msg(la_r, 1, FROM_OTHR, buf, bytes_read, NULL, name);
+                  }
                   else if(msg_type == MSG_PASS || msg_type == MSG_BLAST){
+                        /*msg_pass needs an original sender entry to pass along so that recp knows who sent them msg*/
                         /*snd_msg(pl->l_a, pl->sz, MSG_PASS, buf, bytes_read, recp);*/
                         #ifdef DEBUG
                         printf("read index: %i, n local peers: %i\n", rma->index, pl->sz);
                         puts("sending first half of pass or blast messages");
                         printf("snd_msg(pl->l_a, %i, %i, buf, bytes, recp)\n", rma->index, msg_type);
                         #endif
-                        snd_msg(pl->l_a, rma->index, msg_type, buf, bytes_read, recp);
+                        snd_msg(pl->l_a, rma->index, msg_type, buf, bytes_read, recp, name);
                         #ifdef DEBUG
                         puts("sending second half of pass or blast messages");
                         printf("snd_msg(pl->l_a+%i, %i, %i, buf, bytes, recp)\n", rma->index+1, pl->sz-rma->index-1, msg_type);
                         #endif
                         // TODO: which is accurate?
                         /*snd_msg(pl->l_a+rma->index+1, pl->sz-rma->index+1, msg_type, buf, bytes_read, recp);*/
-                        snd_msg(pl->l_a+rma->index+1, pl->sz-rma->index-1, msg_type, buf, bytes_read, recp);
+                        snd_msg(pl->l_a+rma->index+1, pl->sz-rma->index-1, msg_type, buf, bytes_read, recp, name);
                   }
                   memset(buf, 0, bytes_read);
             }
+            memset(name, 0, 30);
       }
 }
 
@@ -267,7 +281,14 @@ int main(int argc, char** argv){
       pl_init(pl);
       pl->read_func = (void*)&read_messages_pth;
       pl->continuous = 1;
-      if(argc >= 2){
+      /*takes 3, 2 or 1 argument*/
+      char* nick = NULL;
+      char* sterm = NULL;
+      if(argc >= 2)sterm = argv[1];
+      if(argc >= 3)nick = argv[2];
+      else nick = strdup("[unknown]");
+      if(sterm){
+            printf("hello %s, welcome to blech\n", nick);
             char* dname; char* mac;
             printf("looking for peer matching search string: \"%s\"\n", argv[1]);
             bdaddr_t* bd = get_bdaddr(argv[1], &dname, &mac);
@@ -324,7 +345,7 @@ int main(int argc, char** argv){
                         continue;
                   }
                   read = getline(&ln, &sz, stdin);
-                  snd_msg(la, 1, msg_code, ln, read, recp);
+                  snd_msg(la, 1, msg_code, ln, read, recp, nick);
             }
             else snd_txt_to_peers(pl, ln, read);
       }
