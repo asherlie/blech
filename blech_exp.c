@@ -18,7 +18,7 @@ bdaddr_t* get_bdaddr(char* d_name, char** m_name, char** m_addr){
       char addr[19] = {0};
       char name[248] = {0};
       dev_id = hci_get_route(NULL);
-      sock = hci_open_dev( dev_id );
+      sock = hci_open_dev(dev_id);
       if (dev_id < 0 || sock < 0){
             perror("opening socket");
             exit(1);
@@ -141,9 +141,13 @@ void accept_connections(struct peer_list* pl){
       pthread_mutex_init(&pm, NULL);
       while(pl->continuous){
             clnt = accept(pl->local_sock, (struct sockaddr *)&rem_addr, &opt);
+            // as soon as a new client is added, wait for them to send their desired name
+            read(clnt, name, 30);
             ba2str(&rem_addr.rc_bdaddr, addr);
-            if(hci_read_remote_name(clnt, &rem_addr.rc_bdaddr, sizeof(name), name, 0) < 0)
-                  strcpy(name, "[unknown]");
+            /*
+             *if(hci_read_remote_name(clnt, &rem_addr.rc_bdaddr, sizeof(name), name, 0) < 0)
+             *      strcpy(name, "[unknown]");
+             */
             #ifdef DEBUG
             printf("accepted connection from %s@%s\n", name, addr);
             #endif
@@ -243,6 +247,9 @@ void read_messages_pth(struct read_msg_arg* rma){
                         continue;
                   }
                   // print T
+                  #ifdef DEBUG
+                  if(msg_type == FROM_OTHR)printf("received FROM_OTHR message from \"%s\"\n", name);
+                  #endif
                   printf("%s: %s\n", (msg_type == FROM_OTHR) ? name : la->clnt_info[0], buf);
             }
             if(msg_type == MSG_SND || msg_type == MSG_PASS || msg_type == MSG_BLAST){
@@ -282,13 +289,13 @@ int main(int argc, char** argv){
       pl->read_func = (void*)&read_messages_pth;
       pl->continuous = 1;
       /*takes 3, 2 or 1 argument*/
-      char* nick = NULL;
       char* sterm = NULL;
       if(argc >= 2)sterm = argv[1];
-      if(argc >= 3)nick = argv[2];
-      else nick = strdup("[unknown]");
+      if(argc >= 3)pl->name = argv[2];
+      /*else pl->name = strdup("[unknown]");*/
+      else pl->name = strdup("[anonymous]");
       if(sterm){
-            printf("hello %s, welcome to blech\n", nick);
+            printf("hello %s, welcome to blech\n", pl->name);
             char* dname; char* mac;
             printf("looking for peer matching search string: \"%s\"\n", argv[1]);
             bdaddr_t* bd = get_bdaddr(argv[1], &dname, &mac);
@@ -299,6 +306,7 @@ int main(int argc, char** argv){
                   if(bound == 0){
                         puts("succesfully established a connection");
                         printf("you have joined %s~the network~%s\n", ANSI_RED, ANSI_NON);
+                        send(s, pl->name, 30, 0L);
                         struct sockaddr_rc la;
                         pl_add(pl, la, s, dname, mac);
                   }
@@ -345,7 +353,8 @@ int main(int argc, char** argv){
                         continue;
                   }
                   read = getline(&ln, &sz, stdin);
-                  snd_msg(la, 1, msg_code, ln, read, recp, nick);
+                  /*snd_msg(la, 1, msg_code, ln, read, recp, nick);*/
+                  snd_msg(la, 1, msg_code, ln, read, recp, pl->name);
             }
             else snd_txt_to_peers(pl, ln, read);
       }

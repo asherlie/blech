@@ -44,6 +44,7 @@ struct peer_list{
       struct loc_addr_clnt_num* l_a;
       int sz, cap, local_sock;
       char* local_mac;
+      char* name;
       _Bool continuous;
       struct read_thread* rt;
       void* read_func;
