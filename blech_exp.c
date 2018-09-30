@@ -34,9 +34,7 @@ bdaddr_t* get_bdaddr(char* d_name, char** m_name, char** m_addr){
       for(int i = 0; i < num_rsp; ++i){
             ba2str(&(ii+i)->bdaddr, addr);
             memset(name, 0, sizeof(name));
-            if(hci_read_remote_name(sock, &(ii+i)->bdaddr, sizeof(name), name, 0) < 0)
-                  strcpy(name, "[unknown]");
-            if(strcasestr(name, d_name)){
+            if(hci_read_remote_name(sock, &(ii+i)->bdaddr, sizeof(name), name, 0) >= 0 && strcasestr(name, d_name)){
                   if(m_name)*m_name = strdup(name);
                   if(m_addr)*m_addr = strdup(addr);
                   // memory leak is intentional for the time being to keep this bdaddr_t* valid
@@ -290,17 +288,16 @@ int main(int argc, char** argv){
       pl_init(pl);
       pl->read_func = (void*)&read_messages_pth;
       pl->continuous = 1;
-      /*takes 3, 2 or 1 argument*/
+      /*./b nickname search_hjost*/
       char* sterm = NULL;
-      if(argc >= 2)sterm = argv[1];
-      if(argc >= 3)pl->name = argv[2];
-      /*else pl->name = strdup("[unknown]");*/
+      if(argc >= 2)pl->name = argv[1]; //sterm = argv[1];
       else pl->name = strdup("[anonymous]");
+      if(argc >= 3)sterm = argv[2];
+      printf("hello %s, welcome to blech\n", pl->name);
       if(sterm){
-            printf("hello %s, welcome to blech\n", pl->name);
             char* dname; char* mac;
-            printf("looking for peer matching search string: \"%s\"\n", argv[1]);
-            bdaddr_t* bd = get_bdaddr(argv[1], &dname, &mac);
+            printf("looking for peer matching search string: \"%s\"\n", sterm);
+            bdaddr_t* bd = get_bdaddr(sterm, &dname, &mac);
             if(bd){
                   printf("attempting to connect to peer with hostname: %s...", dname);
                   int s;
@@ -325,7 +322,6 @@ int main(int argc, char** argv){
       char* ln = NULL;
       pthread_t acc_th;
       pthread_create(&acc_th, NULL, (void*)&accept_connections, pl);
-      /*pthread_create(&rea_th, NULL, (void*)&read_messages_pth, pl);*/
       puts("blech is ready for connections");
       while(1){
             read = getline(&ln, &sz, stdin);
@@ -358,6 +354,7 @@ int main(int argc, char** argv){
                         continue;
                   }
                   read = getline(&ln, &sz, stdin);
+                  ln[--read] = '\0';
                   /*snd_msg(la, 1, msg_code, ln, read, recp, nick);*/
                   snd_msg(la, 1, msg_code, ln, read, recp, pl->name);
             }
