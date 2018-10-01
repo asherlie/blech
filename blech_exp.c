@@ -123,7 +123,7 @@ int snd_msg(struct loc_addr_clnt_num* la, int n_peers, int msg_type, char* msg, 
 
 int snd_txt_to_peers(struct peer_list* pl, char* msg, int msg_sz){
       printf("%sme%s: \"%s\"\n", ANSI_MGNTA, ANSI_NON, msg);
-      return snd_msg(pl->l_a, pl->sz, MSG_BLAST, msg, msg_sz, NULL, NULL);
+      return snd_msg(pl->l_a, pl->sz, MSG_BLAST, msg, msg_sz, NULL, pl->name);
 }
 
 void accept_connections(struct peer_list* pl){
