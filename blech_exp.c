@@ -91,6 +91,7 @@ int snd_msg(struct loc_addr_clnt_num* la, int n_peers, int msg_type, char* msg, 
                   send(la[i].clnt_num, recp, 18, 0L);
                   send(la[i].clnt_num, sndr, 30, 0L);
             }
+            if(msg_type == MSG_BLAST)send(la[i].clnt_num, sndr, 30, 0L);
             // msg_sz is used to indicate peer number in a PEER_PASS
             // each index in `route` refers to local peer number
             // PP, MAC is sent
@@ -183,10 +184,12 @@ void read_messages_pth(struct read_msg_arg* rma){
             /*listen(pl->l_a[i].clnt_num, 1);*/
             // first reading message type byte
             read(la->clnt_num, &msg_type, 4);
-            if(msg_type == PEER_PASS || msg_type == MSG_PASS){
-                  bytes_read = read(la->clnt_num, recp, 18);
+            if(msg_type == PEER_PASS || msg_type == MSG_PASS || msg_type == MSG_BLAST){
+                  if(msg_type != MSG_BLAST){
+                        bytes_read = read(la->clnt_num, recp, 18);
+                        la_r = find_peer(pl, recp);
+                  }
                   bytes_read = read(la->clnt_num, name, 30);
-                  la_r = find_peer(pl, recp);
             }
             if(msg_type == PEER_PASS){
                   #ifdef DEBUG
@@ -221,7 +224,7 @@ void read_messages_pth(struct read_msg_arg* rma){
                   if(msg_type == FROM_OTHR)printf("received FROM_OTHR message from \"%s\"\n", name);
                   #endif
                   // are msg blasts accurate? is from_other used even with blasts to local peers
-                  printf("%s%s%s: %s\n", (msg_type == MSG_SND) ? ANSI_BLU : ANSI_GRE, (msg_type == FROM_OTHR) ? name : la->clnt_info[0], ANSI_NON, buf);
+                  printf("%s%s%s: %s\n", (msg_type == MSG_SND) ? ANSI_BLU : ANSI_GRE, (msg_type == FROM_OTHR || msg_type == MSG_BLAST) ? name : la->clnt_info[0], ANSI_NON, buf);
             }
             if(msg_type == MSG_SND || msg_type == MSG_PASS || msg_type == MSG_BLAST){
                   // if we finally found recp
