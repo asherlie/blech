@@ -233,8 +233,6 @@ void read_messages_pth(struct read_msg_arg* rma){
                         snd_msg(la_r, 1, FROM_OTHR, buf, bytes_read, NULL, name);
                   }
                   else if(msg_type == MSG_PASS || msg_type == MSG_BLAST){
-                        /*msg_pass needs an original sender entry to pass along so that recp knows who sent them msg*/
-                        /*snd_msg(pl->l_a, pl->sz, MSG_PASS, buf, bytes_read, recp);*/
                         #ifdef DEBUG
                         printf("read index: %i, n local peers: %i\n", rma->index, pl->sz);
                         puts("sending first half of pass or blast messages");
@@ -261,7 +259,7 @@ int main(int argc, char** argv){
       pl->continuous = 1;
       /*./b nickname search_hjost*/
       char* sterm = NULL;
-      if(argc >= 2)pl->name = argv[1]; //sterm = argv[1];
+      if(argc >= 2)pl->name = argv[1];
       else pl->name = strdup("[anonymous]");
       if(argc >= 3)sterm = argv[2];
       printf("hello %s, welcome to blech\n", pl->name);
@@ -325,7 +323,6 @@ int main(int argc, char** argv){
                   }
                   read = getline(&ln, &sz, stdin);
                   ln[--read] = '\0';
-                  /*snd_msg(la, 1, msg_code, ln, read, recp, nick);*/
                   snd_msg(la, 1, msg_code, ln, read, recp, pl->name);
             }
             else snd_txt_to_peers(pl, ln, read);

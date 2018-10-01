@@ -20,9 +20,6 @@
 struct glob_peer_list_entry{
       // [client name, mac]
       char** clnt_info;
-      // peer_list->l_a[route[0]] is first step of path
-      // route[n-1] will have the clnt_info in their peer_list
-      // NOTE: each digit of route is relative to the peer list of the digit before it
       // dir_p is next peer in chain to dest peer
       int* dir_p;
       int dir_p_cap, n_dir_p;
@@ -38,8 +35,6 @@ struct read_thread{
       pthread_t* th;
 };
 
-// TODO: this should be sorted to allow for binary search
-// for easiest shortest path node calculation
 struct peer_list{
       struct glob_peer_list* gpl;
       struct loc_addr_clnt_num* l_a;
@@ -66,5 +61,4 @@ struct glob_peer_list_entry* gpl_add(struct glob_peer_list* gpl, char* name, cha
 int has_peer(struct peer_list* pl, char* mac);
 struct glob_peer_list_entry* glob_peer_route(struct peer_list* pl, char* mac, int el, _Bool* cont);
 void rt_init(struct read_thread* rt);
-//pthread_t add_read_thread(struct peer_list* pl, void* read_th_fnc);
 pthread_t add_read_thread(struct peer_list* pl, void *(*read_th_fnc) (void *));
