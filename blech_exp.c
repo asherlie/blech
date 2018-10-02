@@ -68,61 +68,34 @@ struct loc_addr_clnt_num* find_peer(struct peer_list* pl, char* mac){
       return NULL;
 }
 
-// sndr is a 30 byte string
-int snd_msg(struct loc_addr_clnt_num* la, int n_peers, int msg_type, char* msg, int msg_sz, char* recp, char* sndr){
+// if *_sz == 0, entry will not be sent
+_Bool abs_snd_msg(struct loc_addr_clnt_num* la, int n, int msg_type, int recp_sz, int sender_sz, int msg_sz, char* recp, char* sender, char* msg){
+      _Bool ret = 1;
+      for(int i = 0; i < n; ++i){
+            ret = (send(la[i].clnt_num, &msg_type, 4, 0L) == 4);
+            if(recp_sz)ret = (send(la[i].clnt_num, recp, 18, 0L) == 18) && ret;
+            if(sender_sz)ret = (send(la[i].clnt_num, sender, 30, 0L) == 30) && ret;
+            if(msg_sz)ret = (send(la[i].clnt_num, msg, msg_sz, 0L) == msg_sz) && ret;
+      }
+      return ret;
+}
+
+// sndr is always a 30 byte string
+_Bool snd_msg(struct loc_addr_clnt_num* la, int n_peers, int msg_type, char* msg, int msg_sz, char* recp, char* sndr){
       #ifdef DEBUG
       printf("sending message of type: %i to %i peers recp param: %s\n", msg_type, n_peers, recp);
       #endif
-      for(int i = 0; i < n_peers; ++i){
-            // assuming already bound
-            /*bind_to_bdaddr(&pl->l_a[i].l_a.rc_bdaddr);*/
-            send(la[i].clnt_num, &msg_type, 4, 0L);
-            // MSG_PASS indicates that a message is being sent indirectly and that we want to act as a middleperson
-            // it will not be printed by read_messages_pth
-            // from main: if not found in pl, snd_msg ith MSG_PASS and recp set to mac of end recp
-            // we can assume that snd_msg will only be invoked with PASS if recp is not in pl or la
-            if(msg_type == MSG_PASS){
-                  if(!recp){
-                        puts("blech::snd_msg: msg_type == MSG_PASS and recp is unspecified");
-                        return -1;
-                  }
-                  /*MAC takes up 17 chars*/
-                  // MAC is a good thing to have because it's guaranteed unique
-                  send(la[i].clnt_num, recp, 18, 0L);
-                  send(la[i].clnt_num, sndr, 30, 0L);
-            }
-            if(msg_type == MSG_BLAST)send(la[i].clnt_num, sndr, 30, 0L);
-            // msg_sz is used to indicate peer number in a PEER_PASS
-            // each index in `route` refers to local peer number
-            // PP, MAC is sent
-            if(msg_type == PEER_PASS){
-                  // sending local pl->l_a[index] to help other nodes construct routes for each glob_peer_list_entry
-                  #ifdef DEBUG
-                  puts("executing peer pass");
-                  #endif
-                  // this is obselete with current implementation
-                  // TODO: implement passing along of full path
-                  /*send(la[i].clnt_num, &msg_sz, 4, 0L);*/
-                  // when a PEER_PASS is sent, msg must be a hostname - for now assuming sizeof 30, allow for msg_sz later
-                  send(la[i].clnt_num, recp, 18, 0L);
-                  send(la[i].clnt_num, msg, 30, 0L);
-            }
-            else send(la[i].clnt_num, msg, msg_sz, 0L);
-            // TODO: possibly send recp info in blast mode, which is being passed in anyway
-            // to know when to stop passing - are users aware of their mac addresses
-            // as of now, passing will continue until the message is sent to someone with just one peer
-            // which will be problematic when it comes to circular graphs
-            // recp will be NULL unless it's the last step of a MSG_PASS
-            if(msg_type == MSG_SND){
-                  // we don't want to print anything if a message is passing through us
-                  if(!recp)printf("%sme%s: \"%s\"\n", ANSI_MGNTA, ANSI_NON, msg);
-            }
+      switch(msg_type){
+            case MSG_PASS : return abs_snd_msg(la, n_peers, MSG_PASS, 18, 30, msg_sz, recp, sndr, msg);
+            case MSG_BLAST: return abs_snd_msg(la, n_peers, MSG_BLAST, 0, 30, msg_sz, NULL, sndr, msg);
+            case PEER_PASS: return abs_snd_msg(la, n_peers, PEER_PASS, 18, 0, 30, recp, NULL, msg);
+            case FROM_OTHR: return abs_snd_msg(la, n_peers, FROM_OTHR, 0, 30, msg_sz, NULL, sndr, msg);
+            case MSG_SND  : return abs_snd_msg(la, n_peers, MSG_SND, 0, 0, msg_sz, NULL, NULL, msg);
       }
-      return n_peers;
+      return 0;
 }
 
 int snd_txt_to_peers(struct peer_list* pl, char* msg, int msg_sz){
-      printf("%sme%s: \"%s\"\n", ANSI_MGNTA, ANSI_NON, msg);
       return snd_msg(pl->l_a, pl->sz, MSG_BLAST, msg, msg_sz, NULL, pl->name);
 }
 
@@ -229,9 +202,7 @@ void read_messages_pth(struct read_msg_arg* rma){
             if(msg_type == MSG_SND || msg_type == MSG_PASS || msg_type == MSG_BLAST){
                   // if we finally found recp
                   // la_r will only be !NULL if MSG_PASS - if we have the recipient as a local peer
-                  if(la_r){
-                        snd_msg(la_r, 1, FROM_OTHR, buf, bytes_read, NULL, name);
-                  }
+                  if(la_r)snd_msg(la_r, 1, FROM_OTHR, buf, bytes_read, NULL, name);
                   else if(msg_type == MSG_PASS || msg_type == MSG_BLAST){
                         #ifdef DEBUG
                         printf("read index: %i, n local peers: %i\n", rma->index, pl->sz);
@@ -326,6 +297,7 @@ int main(int argc, char** argv){
                   snd_msg(la, 1, msg_code, ln, read, recp, pl->name);
             }
             else snd_txt_to_peers(pl, ln, read);
+            printf("%sme%s: \"%s\"\n", ANSI_MGNTA, ANSI_NON, ln);
       }
       // we can't join the accept or read threads because they're waiting for connections/data
       // TODO: look into setting timeout for accept, read and joining threads
