@@ -1,7 +1,5 @@
 #include "peer_list.h"
 
-#define PORTNUM 2010
-
 void gpl_init(struct glob_peer_list* gpl){
       gpl->sz = 0;
       gpl->cap = 1;
@@ -58,7 +56,7 @@ pthread_t add_read_thread(struct peer_list* pl, void *(*read_th_fnc) (void *)){
       return ptt;
 }
 
-void pl_init(struct peer_list* pl){
+void pl_init(struct peer_list* pl, uint16_t port_num){
       pl->gpl = malloc(sizeof(struct glob_peer_list));
       gpl_init(pl->gpl);
       pl->rt = malloc(sizeof(struct read_thread));
@@ -71,7 +69,7 @@ void pl_init(struct peer_list* pl){
       bzero(&loc_addr, sizeof(struct sockaddr_in));
       loc_addr.sin_family = AF_INET;
       loc_addr.sin_addr.s_addr = htonl(INADDR_ANY);
-      loc_addr.sin_port = htons(PORTNUM);
+      loc_addr.sin_port = htons(port_num);
       int s = socket(AF_INET, SOCK_STREAM, 0);
       bind(s, (struct sockaddr*)&loc_addr, sizeof(loc_addr));
       // listening mode

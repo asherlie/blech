@@ -17,8 +17,6 @@
 #define ANSI_BLU   "\x1b[34m"
 #define ANSI_MGNTA "\x1b[35m"
 
-#define PORT_NO 2010
-
 struct glob_peer_list_entry{
       // [client name, mac]
       char** clnt_info;
@@ -54,7 +52,7 @@ struct read_msg_arg{
 };
 
 void gpl_init(struct glob_peer_list* gpl);
-void pl_init(struct peer_list* pl);
+void pl_init(struct peer_list* pl, uint16_t port_num);
 void pl_add(struct peer_list* pl, struct sockaddr_in la, int clnt_num, char* name, char* mac);
 void pl_print(struct peer_list* pl);
 void gple_add_route_entry(struct glob_peer_list_entry* gple, int rel_no);

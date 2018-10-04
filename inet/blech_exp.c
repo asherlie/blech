@@ -1,6 +1,8 @@
 #include <string.h>
 #include "peer_list.h"
 
+#define PORTNUM 2010
+
 _Bool strtoi(const char* str, unsigned int* ui, int* i){
       char* res;
       unsigned int r = (unsigned int)strtol(str, &res, 10);
@@ -10,7 +12,7 @@ _Bool strtoi(const char* str, unsigned int* ui, int* i){
       return 1;
 }
 
-int wifi_connect(char* host, int* sock){
+int net_connect(char* host, int* sock, uint16_t port_num){
       struct sockaddr_in serv_addr;
       bzero(&serv_addr, sizeof(struct sockaddr_in));
       int status = 0, s;
@@ -20,7 +22,7 @@ int wifi_connect(char* host, int* sock){
       if(!serv)return -1;
       serv_addr.sin_family = AF_INET;
       bcopy((char*)serv->h_addr, (char*)&serv_addr.sin_addr.s_addr, serv->h_length);
-      serv_addr.sin_port = htons(PORT_NO);
+      serv_addr.sin_port = htons(port_num);
       status = connect(s, (struct sockaddr*)&serv_addr, sizeof(struct sockaddr_in));
       *sock = s;
       return status;
@@ -205,7 +207,7 @@ void safe_exit(struct peer_list* pl){
 int main(int argc, char** argv){
       int bound = 1;
       struct peer_list* pl = malloc(sizeof(struct peer_list));
-      pl_init(pl);
+      pl_init(pl, PORTNUM);
       pl->read_func = (void*)&read_messages_pth;
       pl->continuous = 1;
       /*./b nickname search_hjost*/
@@ -219,7 +221,7 @@ int main(int argc, char** argv){
             printf("looking for peer matching search string: \"%s\"\n", sterm);
             // sterm is ip
             int s;
-            bound = wifi_connect(sterm, &s);
+            bound = net_connect(sterm, &s, PORTNUM);
             if(bound == 0){
                   puts("succesfully established a connection");
                   printf("you have joined %s~the network~%s\n", ANSI_RED, ANSI_NON);
