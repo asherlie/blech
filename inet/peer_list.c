@@ -70,7 +70,6 @@ void pl_init(struct peer_list* pl){
       bzero(&loc_addr, sizeof(struct sockaddr_in));
       loc_addr.sin_family = AF_INET;
       loc_addr.sin_addr.s_addr = htonl(INADDR_ANY);
-      /*loc_addr.rc_channel = (uint8_t)1;*/
       loc_addr.sin_port = htons(PORTNUM);
       int s = socket(AF_INET, SOCK_STREAM, 0);
       bind(s, (struct sockaddr*)&loc_addr, sizeof(loc_addr));

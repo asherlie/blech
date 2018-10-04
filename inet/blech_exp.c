@@ -10,62 +10,6 @@ _Bool strtoi(const char* str, unsigned int* ui, int* i){
       return 1;
 }
 
-/* this code borrows from www.people.csail.mit.edu/albert/bluez-intro/c404.html */
-/*
- *bdaddr_t* get_bdaddr(char* d_name, char** m_name, char** m_addr){
- *      inquiry_info *ii = NULL;
- *      int max_rsp, num_rsp;
- *      int dev_id, sock, len, flags;
- *      char addr[19] = {0};
- *      char name[248] = {0};
- *      dev_id = hci_get_route(NULL);
- *      sock = hci_open_dev(dev_id);
- *      if (dev_id < 0 || sock < 0){
- *            perror("opening socket");
- *            exit(1);
- *      }
- *      // hci_inquiry takes 1.28*len seconds
- *      len = 8;
- *      [>len = 5;<]
- *      max_rsp = 255;
- *      flags = IREQ_CACHE_FLUSH;
- *      ii = (inquiry_info*)malloc(max_rsp*sizeof(inquiry_info));
- *      num_rsp = hci_inquiry(dev_id, len, max_rsp, NULL, &ii, flags);
- *      if(num_rsp < 0)perror("hci_inquiry");
- *      for(int i = 0; i < num_rsp; ++i){
- *            ba2str(&(ii+i)->bdaddr, addr);
- *            memset(name, 0, sizeof(name));
- *            if(hci_read_remote_name(sock, &(ii+i)->bdaddr, sizeof(name), name, 0) >= 0 && strcasestr(name, d_name)){
- *                  if(m_name)*m_name = strdup(name);
- *                  if(m_addr)*m_addr = strdup(addr);
- *                  // memory leak is intentional for the time being to keep this bdaddr_t* valid
- *                  // TODO: fix this memory leak
- *                  return &(ii+i)->bdaddr;
- *            }
- *      }
- *      free(ii);
- *      close(sock);
- *      return NULL;
- *}
- */
-
-/*
- *int bind_to_bdaddr(bdaddr_t* bd, int* sock){
- *      int status = 0, s;
- *      if(!bd)return -1;
- *      struct sockaddr_in addr = { 0 };
- *      s = socket(AF_INET, SOCK_STREAM, 0);
- *      // set the connection parameters - who to connect to
- *      addr.sin_family = AF_INET;
- *      addr.rc_channel = (uint8_t) 1;
- *      addr.rc_bdaddr = *bd;
- *      // connect to peer
- *      status = connect(s, (struct sockaddr *)&addr, sizeof(addr));
- *      *sock = s;
- *      return status;
- *}
- */
-
 int wifi_connect(char* host, int* sock){
       struct sockaddr_in serv_addr;
       bzero(&serv_addr, sizeof(struct sockaddr_in));
@@ -133,7 +77,6 @@ void accept_connections(struct peer_list* pl){
             read(clnt, name, 30);
             send(clnt, pl->name, 30, 0L);
             addr = inet_ntoa(rem_addr.sin_addr);
-            /*ba2str(&rem_addr.rc_bdaddr, addr);*/
             #ifdef DEBUG
             printf("accepted connection from %s@%s\n", name, addr);
             #endif
@@ -263,7 +206,6 @@ int main(int argc, char** argv){
       if(sterm){
             char* mac;
             printf("looking for peer matching search string: \"%s\"\n", sterm);
-            /*bdaddr_t* bd = get_bdaddr(sterm, &dname, &mac);*/
             // sterm is ip
             int s;
             /*printf("attempting to connect to peer with hostname: %s...", dname);*/
