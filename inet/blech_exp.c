@@ -55,6 +55,7 @@ _Bool snd_msg(struct loc_addr_clnt_num* la, int n_peers, int msg_type, char* msg
             case PEER_PASS: return abs_snd_msg(la, n_peers, PEER_PASS, 18, 0, 30, recp, NULL, msg);
             case FROM_OTHR: return abs_snd_msg(la, n_peers, FROM_OTHR, 0, 30, msg_sz, NULL, sndr, msg);
             case MSG_SND  : return abs_snd_msg(la, n_peers, MSG_SND, 0, 0, msg_sz, NULL, NULL, msg);
+            case PEER_EXIT: return abs_snd_msg(la, n_peers, PEER_EXIT, 0, 0, 0, NULL, NULL, NULL);
       }
       return 0;
 }
@@ -122,6 +123,10 @@ void read_messages_pth(struct read_msg_arg* rma){
             /*listen(pl->l_a[i].clnt_num, 1);*/
             // first reading message type byte
             read(la->clnt_num, &msg_type, 4);
+            if(msg_type == PEER_EXIT){
+                  printf("user %s has disconnected\n", rma->pl->l_a[rma->index].clnt_info[0]);
+                  return;
+            }
             if(msg_type == PEER_PASS || msg_type == MSG_PASS || msg_type == MSG_BLAST){
                   if(msg_type != MSG_BLAST){
                         bytes_read = read(la->clnt_num, recp, 18);
@@ -158,9 +163,9 @@ void read_messages_pth(struct read_msg_arg* rma){
                         // TODO remove peer from peer list
                         // adjust peer list by removing global peers who are no longer accessible
                         // TODO: solve synchronization issues with pl
-                        printf("user %s has disconnected\n", rma->pl->l_a[rma->index].clnt_info[0]);
+                        printf("could not print message from %s\n", rma->pl->l_a[rma->index].clnt_info[0]);
                         // we should be able to safely exit this read loop if our index is no longer connected
-                        return;
+                        continue;
                   }
                   #ifdef DEBUG
                   if(msg_type == FROM_OTHR)printf("received FROM_OTHR message from \"%s\"\n", name);
@@ -191,6 +196,12 @@ void read_messages_pth(struct read_msg_arg* rma){
       }
 }
 
+// TODO: free peer list memory
+void safe_exit(struct peer_list* pl){
+      pl->continuous = 0;
+      snd_msg(pl->l_a, pl->sz, PEER_EXIT, NULL, 0, NULL, NULL);
+}
+
 int main(int argc, char** argv){
       int bound = 1;
       struct peer_list* pl = malloc(sizeof(struct peer_list));
@@ -208,7 +219,6 @@ int main(int argc, char** argv){
             printf("looking for peer matching search string: \"%s\"\n", sterm);
             // sterm is ip
             int s;
-            /*printf("attempting to connect to peer with hostname: %s...", dname);*/
             bound = wifi_connect(sterm, &s);
             if(bound == 0){
                   puts("succesfully established a connection");
@@ -268,8 +278,6 @@ int main(int argc, char** argv){
             else snd_txt_to_peers(pl, ln, read);
             printf("%sme%s: \"%s\"\n", ANSI_MGNTA, ANSI_NON, ln);
       }
-      // we can't join the accept or read threads because they're waiting for connections/data
-      // TODO: look into setting timeout for accept, read and joining threads
-      pl->continuous = 0;
+      safe_exit(pl);
       return 1;
 }

@@ -53,6 +53,7 @@ pthread_t add_read_thread(struct peer_list* pl, void *(*read_th_fnc) (void *)){
       rma->pl = pl;
       pthread_t ptt;
       pthread_create(&ptt, NULL, read_th_fnc, rma);
+      pthread_detach(ptt);
       pl->rt->th[pl->rt->sz++] = ptt;
       return ptt;
 }
