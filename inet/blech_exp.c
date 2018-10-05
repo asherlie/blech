@@ -131,6 +131,10 @@ void read_messages_pth(struct read_msg_arg* rma){
             read(la->clnt_num, &msg_type, 4);
             if(msg_type == PEER_EXIT){
                   printf("user %s has disconnected\n", rma->pl->l_a[rma->index].clnt_info[0]);
+                  char* lost_route[pl->gpl->sz];
+                  int lost = pl_remove(pl, rma->index, lost_route);
+                  for(int i = 0; i < lost; ++i)
+                        printf("route to global peer %s has been lost\n", lost_route[i]);
                   return;
             }
             if(msg_type == PEER_PASS || msg_type == MSG_PASS || msg_type == MSG_BLAST){
@@ -234,15 +238,16 @@ int main(int argc, char** argv){
             bound = net_connect(sterm, &s, PORTNUM);
             if(bound == 0){
                   puts("succesfully established a connection");
-                  printf("you have joined %s~the network~%s\n", ANSI_RED, ANSI_NON);
                   send(s, pl->name, 30, 0L);
                   char p_name[30] = {0};
                   read(s, p_name, 30);
+                  // printing after we've read preferred name info to assure it's blech network we've connected to
+                  printf("you have joined %s~the network~%s\n", ANSI_RED, ANSI_NON);
                   struct sockaddr_in la;
                   bzero(&la, sizeof(struct sockaddr_in));
                   // uhh this chunk doesn't make sense
                   mac = inet_ntoa(la.sin_addr);
-                  pl_add(pl, la, s, p_name, mac);
+                  pl_add(pl, la, s, strdup(p_name), strdup(mac));
             }
             else puts("failed to establish a connection");
       }

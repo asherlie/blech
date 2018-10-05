@@ -55,10 +55,15 @@ struct read_msg_arg{
 void gpl_init(struct glob_peer_list* gpl);
 void pl_init(struct peer_list* pl, uint16_t port_num);
 void pl_add(struct peer_list* pl, struct sockaddr_in la, int clnt_num, char* name, char* mac);
+int pl_remove(struct peer_list* pl, int peer_ind, char** gpl_i);
+void pl_free(struct peer_list* pl);
 void pl_print(struct peer_list* pl);
 void gple_add_route_entry(struct glob_peer_list_entry* gple, int rel_no);
+_Bool gple_remove_route_entry(struct glob_peer_list_entry* gple, int rel_no);
 void gpl_init(struct glob_peer_list* gpl);
 struct glob_peer_list_entry* gpl_add(struct glob_peer_list* gpl, char* name, char* mac);
+void gpl_remove(struct glob_peer_list* gpl, int gpl_i);
+void gpl_free(struct glob_peer_list* gpl);
 int has_peer(struct peer_list* pl, char* mac);
 struct glob_peer_list_entry* glob_peer_route(struct peer_list* pl, char* mac, int el, _Bool* cont);
 void rt_init(struct read_thread* rt);

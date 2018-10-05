@@ -27,6 +27,7 @@ struct glob_peer_list_entry* gpl_add(struct glob_peer_list* gpl, char* name, cha
       return &gpl->gpl[gpl->sz-1];
 }
 
+// TODO: fix synchronization issues
 void gple_add_route_entry(struct glob_peer_list_entry* gple, int rel_no){
       if(gple->n_dir_p == gple->dir_p_cap){
             gple->dir_p_cap *= 2;
@@ -36,6 +37,20 @@ void gple_add_route_entry(struct glob_peer_list_entry* gple, int rel_no){
             gple->dir_p = tmp_route;
       }
       gple->dir_p[gple->n_dir_p++] = rel_no;
+}
+
+// TODO: fix synchronization issues
+// as of now, should only be used within pl_remove to resolve synchronization issues
+// returns 1 if item was removed
+_Bool gple_remove_route_entry(struct glob_peer_list_entry* gple, int rel_no){
+      for(int i = 0; i < gple->n_dir_p; ++i){
+            if(gple->dir_p[i] == rel_no){
+                  memmove(gple->dir_p+i, gple->dir_p+i+1, gple->n_dir_p-i-1);
+                  --gple->n_dir_p;
+                  return 1;
+            }
+      }
+      return 0;
 }
 
 pthread_t add_read_thread(struct peer_list* pl, void *(*read_th_fnc) (void *)){
@@ -117,11 +132,67 @@ void pl_add(struct peer_list* pl, struct sockaddr_in la, int clnt_num, char* nam
       add_read_thread(pl, pl->read_func);
 }
 
-/*
- *pl_remove(struct peer_list* pl, int peer_ind){
- *}
- *
- */
+// if(gpl_i)*gpl_i is set to indices of global peers with broken routes
+// gpl_i should be able to acommodate pl->gpl->sz items
+// returns number of global peers who i've lost access to
+int pl_remove(struct peer_list* pl, int peer_ind, char** gpl_i){
+      pthread_mutex_lock(&pl->pl_lock);
+      pl->l_a[peer_ind].continuous = 0;
+      // this is seg faulting
+      free(pl->l_a[peer_ind].clnt_info[0]);
+      free(pl->l_a[peer_ind].clnt_info[1]);
+      int gpl_s = 0;
+      memmove(pl->l_a+peer_ind, pl->l_a+peer_ind+1, pl->sz-peer_ind-1);
+      // adjusting gpl routes
+      for(int i = 0; i < pl->gpl->sz; ++i){
+            gple_remove_route_entry(&pl->gpl->gpl[i], peer_ind);
+            // if gpl->gpl[i] is inaccessible
+            if(!pl->gpl->gpl[i].n_dir_p){
+                  gpl_remove(pl->gpl, i);
+                  if(gpl_i)gpl_i[gpl_s] = pl->gpl->gpl[i].clnt_info[0];
+                  ++gpl_s;
+            }
+            for(int j = 0; j < pl->gpl->gpl->n_dir_p; ++j){
+                  // decrement
+                  if(pl->gpl->gpl->dir_p[j] > peer_ind){
+                        --pl->gpl->gpl->dir_p[j];
+                  }
+            }
+      }
+      /*
+       *[1,2,3,4,5]
+       *removing 3
+       *move lst+ind, lst+ind+1, pl->sz-ind-1
+       *move lst+2  , lst+3,     5-2-1
+       */
+      --pl->sz;
+      pthread_mutex_unlock(&pl->pl_lock);
+      return gpl_s;
+}
+
+void pl_free(struct peer_list* pl){
+      pl->continuous = 0;
+      free(pl->name);
+      /*free(pl->local_mac);*/
+      for(; pl->sz; pl_remove(pl, 0, NULL));
+      pthread_mutex_destroy(&pl->pl_lock);
+      gpl_free(pl->gpl);
+}
+
+// TODO: synch issues?
+void gpl_remove(struct glob_peer_list* gpl, int gpl_i){
+      free(gpl->gpl[gpl_i].clnt_info[0]);
+      free(gpl->gpl[gpl_i].clnt_info[1]);
+      free(gpl->gpl[gpl_i].dir_p);
+      memmove(gpl->gpl+gpl_i, gpl->gpl+gpl_i+1, gpl->sz-gpl_i-1);
+      --gpl->sz;
+}
+
+void gpl_free(struct glob_peer_list* gpl){
+      for(; gpl->sz; gpl_remove(gpl, 0));
+      free(gpl->gpl);
+}
+
 void pl_print(struct peer_list* pl){
       printf("printing %i local peers and %i global peers\n", pl->sz, pl->gpl->sz);
       for(int i = 0; i < pl->sz; ++i){
