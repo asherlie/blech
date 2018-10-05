@@ -77,6 +77,9 @@ void pl_init(struct peer_list* pl, uint16_t port_num){
       pl->local_sock = s;
       listen(pl->local_sock, 0);
       pl->local_mac = malloc(sizeof(char)*18);
+      pthread_mutex_t pmu;
+      pthread_mutex_init(&pmu, NULL);
+      pl->pl_lock = pmu;
 }
 
 void rt_init(struct read_thread* rt){
@@ -86,6 +89,7 @@ void rt_init(struct read_thread* rt){
 }
 
 void pl_add(struct peer_list* pl, struct sockaddr_in la, int clnt_num, char* name, char* mac){
+      pthread_mutex_lock(&pl->pl_lock);
       if(pl->sz == pl->cap){
             pl->cap *= 2;
             struct loc_addr_clnt_num* tmp_l_a = malloc(sizeof(struct loc_addr_clnt_num)*pl->cap);
@@ -109,9 +113,15 @@ void pl_add(struct peer_list* pl, struct sockaddr_in la, int clnt_num, char* nam
       pl->l_a[pl->sz++].clnt_num = clnt_num;
       // TODO:
       /*create a new thread to read and keep it in pl->r_th*/
+      pthread_mutex_unlock(&pl->pl_lock);
       add_read_thread(pl, pl->read_func);
 }
 
+/*
+ *pl_remove(struct peer_list* pl, int peer_ind){
+ *}
+ *
+ */
 void pl_print(struct peer_list* pl){
       printf("printing %i local peers and %i global peers\n", pl->sz, pl->gpl->sz);
       for(int i = 0; i < pl->sz; ++i){

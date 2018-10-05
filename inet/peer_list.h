@@ -36,6 +36,7 @@ struct read_thread{
 };
 
 struct peer_list{
+      pthread_mutex_t pl_lock;
       struct glob_peer_list* gpl;
       struct loc_addr_clnt_num* l_a;
       int sz, cap, local_sock;

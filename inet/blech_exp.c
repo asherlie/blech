@@ -29,9 +29,12 @@ int net_connect(char* host, int* sock, uint16_t port_num){
 }
 
 struct loc_addr_clnt_num* find_peer(struct peer_list* pl, char* mac){
+      struct loc_addr_clnt_num* ret = NULL;
+      pthread_mutex_lock(&pl->pl_lock);
       for(int i = 0; i < pl->sz; ++i)
-            if(strstr(pl->l_a[i].clnt_info[1], mac))return &pl->l_a[i];
-      return NULL;
+            if(strstr(pl->l_a[i].clnt_info[1], mac))ret = &pl->l_a[i];
+      pthread_mutex_unlock(&pl->pl_lock);
+      return ret;
 }
 
 // if *_sz == 0, entry will not be sent
@@ -63,7 +66,10 @@ _Bool snd_msg(struct loc_addr_clnt_num* la, int n_peers, int msg_type, char* msg
 }
 
 int snd_txt_to_peers(struct peer_list* pl, char* msg, int msg_sz){
-      return snd_msg(pl->l_a, pl->sz, MSG_BLAST, msg, msg_sz, NULL, pl->name);
+      pthread_mutex_lock(&pl->pl_lock);
+      int ret = snd_msg(pl->l_a, pl->sz, MSG_BLAST, msg, msg_sz, NULL, pl->name);
+      pthread_mutex_unlock(&pl->pl_lock);
+      return ret;
 }
 
 void accept_connections(struct peer_list* pl){
@@ -72,8 +78,6 @@ void accept_connections(struct peer_list* pl){
       char name[248] = {0};
       struct sockaddr_in rem_addr;
       socklen_t opt = sizeof(rem_addr);
-      pthread_mutex_t pm;
-      pthread_mutex_init(&pm, NULL);
       while(pl->continuous){
             clnt = accept(pl->local_sock, (struct sockaddr *)&rem_addr, &opt);
             // as soon as a new client is added, wait for them to send their desired name
@@ -85,10 +89,8 @@ void accept_connections(struct peer_list* pl){
             #endif
             printf("new [%slcl%s] user: %s@%s has joined %s~the network~%s\n", ANSI_BLU, ANSI_NON, name, addr, ANSI_RED, ANSI_NON);
             // DO NOT add the same rem-addr mul times
-            pthread_mutex_lock(&pm);
             pl_add(pl, rem_addr, clnt, strdup(name), strdup(addr));
             // each time a peer is added, we need to send updated peer information to all peers
-            pthread_mutex_unlock(&pm);
             // alert my local peers 
             // sz-1 so as not to send most recent peer
             #ifdef DEBUG
@@ -98,10 +100,12 @@ void accept_connections(struct peer_list* pl){
             #ifdef DEBUG
             printf("sending %i peer passes to new peer from accept connections\n", pl->sz);
             #endif
+            pthread_mutex_lock(&pl->pl_lock);
             for(int i = 0; i < pl->sz-1; ++i){
                   snd_msg(&pl->l_a[pl->sz-1], 1, PEER_PASS, pl->l_a[i].clnt_info[0], 30, pl->l_a[i].clnt_info[1], NULL);
                   usleep(1000);
             }
+            pthread_mutex_unlock(&pl->pl_lock);
             memset(name, 0, sizeof(name));
             /*memset((char*)addr, 0, sizeof(addr));*/
             /*free(addr);*/
@@ -151,8 +155,10 @@ void read_messages_pth(struct read_msg_arg* rma){
                   // we'll want to record this new possible route in gpl->dir_p
                   if(!route)printf("new [%sglb%s] peer: %s@%s has joined %s~the network~%s\n", ANSI_GRE, ANSI_NON, name, recp, ANSI_RED, ANSI_NON);
                   // doing some quick maths to avoid resending to our sender
+                  pthread_mutex_lock(&pl->pl_lock);
                   snd_msg(pl->l_a, rma->index, PEER_PASS, name, 30, recp, NULL);
                   snd_msg(pl->l_a+rma->index+1, pl->sz-rma->index+1, PEER_PASS, name, 30, recp, NULL);
+                  pthread_mutex_unlock(&pl->pl_lock);
                   // all we need to know for route is who sent us this peer information
                   if(route)gple_add_route_entry(route, rma->index);
                   else gple_add_route_entry(gpl_add(pl->gpl, name, recp), rma->index);
@@ -190,7 +196,9 @@ void read_messages_pth(struct read_msg_arg* rma){
                         puts("sending second half of pass or blast messages");
                         printf("snd_msg(pl->l_a+%i, %i, %i, buf, bytes, recp)\n", rma->index+1, pl->sz-rma->index-1, msg_type);
                         #endif
+                        pthread_mutex_lock(&pl->pl_lock);
                         snd_msg(pl->l_a+rma->index+1, pl->sz-rma->index-1, msg_type, buf, bytes_read, recp, name);
+                        pthread_mutex_unlock(&pl->pl_lock);
                   }
             }
             memset(buf, 0, bytes_read);
@@ -201,7 +209,9 @@ void read_messages_pth(struct read_msg_arg* rma){
 // TODO: free peer list memory
 void safe_exit(struct peer_list* pl){
       pl->continuous = 0;
+      pthread_mutex_lock(&pl->pl_lock);
       snd_msg(pl->l_a, pl->sz, PEER_EXIT, NULL, 0, NULL, NULL);
+      pthread_mutex_unlock(&pl->pl_lock);
 }
 
 int main(int argc, char** argv){
@@ -260,6 +270,7 @@ int main(int argc, char** argv){
                   int msg_code;
                   struct loc_addr_clnt_num* la;
                   char* recp = NULL;
+                  pthread_mutex_lock(&pl->pl_lock);
                   if(i < pl->sz){
                         msg_code = MSG_SND;
                         la = &pl->l_a[i];
@@ -271,8 +282,10 @@ int main(int argc, char** argv){
                   }
                   else{
                         puts("enter an in range peer number");
+                        pthread_mutex_unlock(&pl->pl_lock);
                         continue;
                   }
+                  pthread_mutex_unlock(&pl->pl_lock);
                   read = getline(&ln, &sz, stdin);
                   ln[--read] = '\0';
                   snd_msg(la, 1, msg_code, ln, read, recp, pl->name);
