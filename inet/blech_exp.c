@@ -58,17 +58,18 @@ _Bool abs_snd_msg(struct loc_addr_clnt_num* la, int n, int msg_type, int sender_
 }
 
 // prop_msg works by sending a message to each global peer and each local no global peer
+// if(skip_lst), last local peer will be skipped, helpful for peer passes
 // TODO: change the way messages are sent
-_Bool init_prop_msg(struct peer_list* pl, int msg_type, char* msg, int msg_sz){
+_Bool init_prop_msg(struct peer_list* pl, _Bool skip_lst, int msg_type, char* msg, int msg_sz){
       /*struct glob_peer_list_entry* route = glob_peer_route(pl, recp, gpl_i, NULL);*/
       _Bool ret = 1;
       #ifdef DEBUG
-      printf("init_prop_msg: iterating through %i global peers and %i local\n", pl->gpl->sz, pl->sz);
+      printf("init_prop_msg: iterating through %i global peers and %i local\n", pl->gpl->sz, pl->sz-skip_lst);
       #endif
       for(int i = 0; i < pl->gpl->sz; ++i){
             ret = ret && abs_snd_msg(&pl->l_a[pl->gpl->gpl[i].dir_p[0]], 1, msg_type, 30, msg_sz, pl->gpl->gpl[i].u_id, pl->name, msg, msg_no++);
       }
-      for(int i = 0; i < pl->sz; ++i){
+      for(int i = 0; i < pl->sz-skip_lst; ++i){
             if(!in_glob_route(pl, i))ret = ret && abs_snd_msg(&pl->l_a[i], 1, msg_type, 30, msg_sz, pl->l_a[i].u_id, pl->name, msg, msg_no++);
       }
       return ret;
@@ -96,14 +97,14 @@ _Bool snd_msg(struct loc_addr_clnt_num* la, int n_peers, int msg_type, char* msg
 int snd_txt_to_peers(struct peer_list* pl, char* msg, int msg_sz){
       pthread_mutex_lock(&pl->pl_lock);
       // this is not sending correctly - compare to msg snd protocol which works fine for pm's
-      _Bool ret = init_prop_msg(pl, MSG_BLAST, msg, msg_sz);
+      _Bool ret = init_prop_msg(pl, 0, MSG_BLAST, msg, msg_sz);
       pthread_mutex_unlock(&pl->pl_lock);
       return ret;
 }
 
 void accept_connections(struct peer_list* pl){
       int clnt;
-      char* addr = NULL;
+      /*char* addr = NULL;*/
       char name[248] = {0};
       struct sockaddr_in rem_addr;
       socklen_t opt = sizeof(rem_addr);
@@ -118,11 +119,11 @@ void accept_connections(struct peer_list* pl){
             send(clnt, pl->name, 30, 0L);
             // sending our u_id
             send(clnt, &pl->u_id, 4, 0L);
-            addr = inet_ntoa(rem_addr.sin_addr);
+            /*addr = inet_ntoa(rem_addr.sin_addr);*/
             #ifdef DEBUG
-            printf("accepted connection from %s@%s\n", name, addr);
+            printf("accepted connection from %s. assigned new user u_id: %i\n", name, u_id);
             #endif
-            printf("new [%slcl%s] user: %s@%s has joined %s~the network~%s\n", ANSI_BLU, ANSI_NON, name, addr, ANSI_RED, ANSI_NON);
+            printf("new [%slcl%s] user: %s has joined %s~the network~%s\n", ANSI_BLU, ANSI_NON, name, ANSI_RED, ANSI_NON);
             // DO NOT add the same rem-addr mul times
             /*pl_add(pl, rem_addr, clnt, strdup(name), strdup(addr));*/
             pl_add(pl, rem_addr, clnt, strdup(name), u_id);
@@ -136,8 +137,7 @@ void accept_connections(struct peer_list* pl){
             // this isn't propogating to newest user
             pthread_mutex_lock(&pl->pl_lock);
             // alert our current peers of new peer
-            init_prop_msg(pl, PEER_PASS, name, 30);
-            // alert new peer of current local peers
+            init_prop_msg(pl, 1, PEER_PASS, name, 30); // alert new peer of current local peers
             // < sz-1 because sz-1 is new peer - they're aware of themselves
             #ifdef DEBUG
             printf("sending new peer info to %i local peers from peer %s\n", pl->sz-1, pl->l_a[pl->sz-1].clnt_info[0]);
@@ -297,6 +297,9 @@ int main(int argc, char** argv){
       if(bound == 1){
             // only in this instance will we self assign a u_id
             pl->u_id = assign_uid();
+            #ifdef DEBUG
+            printf("self assigned my u_id %i\n", pl->u_id);
+            #endif
             puts("starting in accept-only mode");
       }
       size_t sz = 0;

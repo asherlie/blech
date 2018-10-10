@@ -9,9 +9,11 @@ void gpl_init(struct glob_peer_list* gpl){
 }
 
 struct glob_peer_list_entry* gpl_add(struct glob_peer_list* gpl, char* name, int u_id){
+      next_uid = u_id+1;
       #ifdef DEBUG
       printf("adding gpl entry with u_id: %i\n", u_id);
       #endif
+      /*pthread_mutex_lock(pl->pl_lock);*/
       if(gpl->sz == gpl->cap){
             gpl->cap *= 2;
             struct glob_peer_list_entry* tmp_gpl = malloc(sizeof(struct glob_peer_list_entry)*gpl->cap);
@@ -26,6 +28,7 @@ struct glob_peer_list_entry* gpl_add(struct glob_peer_list* gpl, char* name, int
       gpl->gpl[gpl->sz].n_dir_p = 0;
       gpl->gpl[gpl->sz].dir_p = malloc(sizeof(int)*gpl->gpl[gpl->sz].dir_p_cap);
       ++gpl->sz;
+      /*pthread_mutex_unlock(pl->pl_lock);*/
       return &gpl->gpl[gpl->sz-1];
 }
 
@@ -106,6 +109,7 @@ void rt_init(struct read_thread* rt){
 }
 
 void pl_add(struct peer_list* pl, struct sockaddr_in la, int clnt_num, char* name, int u_id){
+      next_uid = u_id+1;
       pthread_mutex_lock(&pl->pl_lock);
       if(pl->sz == pl->cap){
             pl->cap *= 2;
@@ -121,14 +125,7 @@ void pl_add(struct peer_list* pl, struct sockaddr_in la, int clnt_num, char* nam
             strcpy(pl->l_a[pl->sz].clnt_info[0], "[unknown]");
       }
       else pl->l_a[pl->sz].clnt_info[0] = name;
-      /*
-       *if(!mac){
-       *      pl->l_a[pl->sz].clnt_info[1] = malloc(10);
-       *      strcpy(pl->l_a[pl->sz].clnt_info[1], "[unknown]");
-       *}
-       */
       pl->l_a[pl->sz].u_id = u_id;
-      /*else pl->l_a[pl->sz].clnt_info[1] = mac;*/
       pl->l_a[pl->sz].continuous = 1;
       // made obsolete by in_glob_route
       /*pl->l_a[pl->sz].in_route = 0;*/
