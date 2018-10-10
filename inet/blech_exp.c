@@ -195,7 +195,7 @@ void read_messages_pth(struct read_msg_arg* rma){
                   return;
             }
             // recp
-            if(msg_type == MSG_PASS || msg_type == PEER_PASS){
+            if(msg_type == MSG_PASS || msg_type == PEER_PASS || msg_type == MSG_BLAST){
                   read(rma->pl->l_a[rma->index].clnt_num, &recp, 4);
                   /*if(msg_type == MSG_PASS)la_r = find_peer(rma->pl, recp);*/
                   la_r = find_peer(rma->pl, recp);
@@ -218,7 +218,7 @@ void read_messages_pth(struct read_msg_arg* rma){
                   struct glob_peer_list_entry* route = NULL;
                   if(la_r){
                         // name is who it's from
-                        snd_msg(la_r, 1, msg_type, buf, msg_sz, -1, name);
+                        snd_msg(la_r, 1, msg_type, buf, msg_sz, la_r->u_id, name);
                   }
                   // we can make the assumption that all peers have the same ((local peer list) U (global peer list))
                   // and that the message was initialized with `init_prop_msg`
@@ -298,11 +298,29 @@ int main(int argc, char** argv){
             if(bound == 0){
                   puts("succesfully established a connection");
                   // reading our newly assigned user id
+                  #ifdef DEBUG
+                  puts("waiting for my u_id assignment...");
+                  #endif
                   read(s, &pl->u_id, 4);
+                  #ifdef DEBUG
+                  puts("got it!");
+                  #endif
                   send(s, pl->name, 30, 0L);
                   char p_name[30] = {0};
+                  #ifdef DEBUG
+                  puts("waiting for new peer's preferred name...");
+                  #endif
                   read(s, p_name, 30);
+                  #ifdef DEBUG
+                  puts("got it!");
+                  #endif
+                  #ifdef DEBUG
+                  puts("waiting for new peer's u_id...");
+                  #endif
                   read(s, &p_u_id, 4);
+                  #ifdef DEBUG
+                  puts("got it!");
+                  #endif
                   // printing after we've read preferred name info to assure it's blech network we've connected to
                   printf("you have joined %s~the network~%s\n", ANSI_RED, ANSI_NON);
                   struct sockaddr_in la;
