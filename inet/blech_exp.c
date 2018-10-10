@@ -68,6 +68,7 @@ _Bool init_prop_msg(struct peer_list* pl, _Bool skip_lst, int msg_type, char* ms
       #endif
       for(int i = 0; i < pl->gpl->sz; ++i){
             ret = ret && abs_snd_msg(&pl->l_a[pl->gpl->gpl[i].dir_p[0]], 1, msg_type, 30, msg_sz, pl->gpl->gpl[i].u_id, pl->name, msg, msg_no++);
+            /*sendr sz: 30, recp: uid of recp, sender, my name, msg: name of new peer*/
       }
       for(int i = 0; i < pl->sz-skip_lst; ++i){
             if(!in_glob_route(pl, i))ret = ret && abs_snd_msg(&pl->l_a[i], 1, msg_type, 30, msg_sz, pl->l_a[i].u_id, pl->name, msg, msg_no++);
@@ -137,15 +138,18 @@ void accept_connections(struct peer_list* pl){
             // this isn't propogating to newest user
             pthread_mutex_lock(&pl->pl_lock);
             // alert our current peers of new peer
-            init_prop_msg(pl, 1, PEER_PASS, name, 30); // alert new peer of current local peers
+            // name refers to the name of our new peer
+            init_prop_msg(pl, 1, PEER_PASS, name, 30);
             // < sz-1 because sz-1 is new peer - they're aware of themselves
             #ifdef DEBUG
             printf("sending new peer info to %i local peers from peer %s\n", pl->sz-1, pl->l_a[pl->sz-1].clnt_info[0]);
+            printf("fields will be abs_snd_msg(pl->l_alast, 1, PEER_PASS, 30, 30, %i, %s, %s, msgno)\n", pl->l_a[pl->sz-1].u_id, pl->name, pl->l_a[0].clnt_info[0]);
             #endif
             for(int i = 0; i < pl->sz-1; ++i){
                   /*snd_msg(&pl->l_a[pl->sz-1], 1, PEER_PASS, pl->l_a[i].clnt_info[0], 30, pl->l_a[i].clnt_info[1], pl->name);*/
                   // new peer nickname goes in msg field message field
-                  abs_snd_msg(&pl->l_a[pl->sz-1], 1, PEER_PASS, 30, 30, pl->l_a[pl->sz-1].u_id, pl->name, pl->l_a[i].clnt_info[0], msg_no++);
+                  /*abs_snd_msg(&pl->l_a[pl->sz-1], 1, PEER_PASS, 30, 30, pl->l_a[pl->sz-1].u_id, pl->name, pl->l_a[i].clnt_info[0], msg_no++);*/
+                  abs_snd_msg(&pl->l_a[pl->sz-1], 1, PEER_PASS, 30, 30, pl->l_a[pl->sz-1].u_id, pl->l_a[i].clnt_info[0], pl->name, msg_no++);
                   usleep(1000);
             }
             // alerting new peer of current global peers
@@ -155,7 +159,7 @@ void accept_connections(struct peer_list* pl){
             #endif
             for(int i = 0; i < pl->gpl->sz; ++i){
                   // new peer nickname goes in msg field message field
-                  abs_snd_msg(&pl->l_a[pl->sz-1], 1, PEER_PASS, 30, 30, pl->l_a[pl->sz-1].u_id, pl->name, pl->gpl->gpl[i].clnt_info[0], msg_no++);
+                  abs_snd_msg(&pl->l_a[pl->sz-1], 1, PEER_PASS, 30, 30, pl->l_a[pl->sz-1].u_id, pl->gpl->gpl[i].clnt_info[0], pl->name, msg_no++);
                   usleep(1000);
             }
             pthread_mutex_unlock(&pl->pl_lock);
@@ -192,10 +196,12 @@ void read_messages_pth(struct read_msg_arg* rma){
             // recp
             if(msg_type == MSG_PASS || msg_type == PEER_PASS){
                   read(rma->pl->l_a[rma->index].clnt_num, &recp, 4);
-                  if(msg_type == MSG_PASS)la_r = find_peer(rma->pl, recp);
+                  /*if(msg_type == MSG_PASS)la_r = find_peer(rma->pl, recp);*/
+                  la_r = find_peer(rma->pl, recp);
                   // is this a local peer?
             }
             if(msg_type == MSG_PASS || msg_type == MSG_BLAST || msg_type == MSG_SND || msg_type == PEER_PASS)
+                  // name of sender
                   read(rma->pl->l_a[rma->index].clnt_num, name, 30);
             // peer pass now sends new peer nickname in msg field
             if(msg_type != PEER_EXIT/* && msg_type != PEER_PASS*/)msg_sz = read(rma->pl->l_a[rma->index].clnt_num, buf, sizeof(buf));
@@ -204,7 +210,7 @@ void read_messages_pth(struct read_msg_arg* rma){
                   /*if(already_recvd_msg(msg_num))continue;*/
                   /*printf("cur msg no: %i, pre msg no: %i\n", cur_msg_no, pre_msg_no);*/
                   if(cur_msg_no == pre_msg_no || (msg_type == PEER_PASS && strstr(rma->pl->name, buf)))continue;
-                  // la_r implies MSG_PASS
+                  // la_r implies MSG_PASS or PEER_PASS
                   struct glob_peer_list_entry* route = NULL;
                   if(la_r){
                         // name is who it's from
@@ -236,10 +242,20 @@ void read_messages_pth(struct read_msg_arg* rma){
                   // we'll want to record this new possible route in gpl->dir_p
                   if(!route)printf("new [%sglb%s] peer: %s has joined %s~the network~%s\n", ANSI_GRE, ANSI_NON, name, ANSI_RED, ANSI_NON);
                   pthread_mutex_lock(&rma->pl->pl_lock);
-                  /*init_prop_msg(rma->pl, PEER_PASS, NULL, 0);*/
-                  pthread_mutex_unlock(&rma->pl->pl_lock);
                   if(route)gple_add_route_entry(route, rma->index);
                   else gple_add_route_entry(gpl_add(rma->pl->gpl, strdup(name), recp), rma->index);
+                  pthread_mutex_unlock(&rma->pl->pl_lock);
+                  /*init_prop_msg(rma->pl, PEER_PASS, NULL, 0);*/
+                  /*
+                   *all we need to do is pass the peer pass along to its recipient. if it's me. stop here
+                   *either way, record peer
+                   */
+                  // if i'm not meant to pass this along
+                  /*
+                   *if(recp == rma->pl->u_id)continue;
+                   *find_peer(rma->pl, recp);
+                   */
+                  /*abs_snd_msg(&pl->l_a[pl->gpl->gpl[i].dir_p[0]], 1, msg_type, 30, msg_sz, pl->gpl->gpl[i].u_id, pl->name, msg, msg_no++);*/
             }
             memset(buf, 0, msg_sz);
             memset(name, 0, 30);
