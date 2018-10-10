@@ -18,6 +18,7 @@
 #define ANSI_MGNTA "\x1b[35m"
 
 struct glob_peer_list_entry{
+      int u_id;
       // [client name, mac]
       char** clnt_info;
       // dir_p is next peer in chain to dest peer
@@ -39,7 +40,8 @@ struct peer_list{
       pthread_mutex_t pl_lock;
       struct glob_peer_list* gpl;
       struct loc_addr_clnt_num* l_a;
-      int sz, cap, local_sock;
+      // u_id is unique on network
+      int sz, cap, local_sock, u_id;
       char* local_mac;
       char* name;
       _Bool continuous;
@@ -54,17 +56,19 @@ struct read_msg_arg{
 
 void gpl_init(struct glob_peer_list* gpl);
 void pl_init(struct peer_list* pl, uint16_t port_num);
-void pl_add(struct peer_list* pl, struct sockaddr_in la, int clnt_num, char* name, char* mac);
+void pl_add(struct peer_list* pl, struct sockaddr_in la, int clnt_num, char* name, int u_id);
 int pl_remove(struct peer_list* pl, int peer_ind, char** gpl_i);
 void pl_free(struct peer_list* pl);
 void pl_print(struct peer_list* pl);
 void gple_add_route_entry(struct glob_peer_list_entry* gple, int rel_no);
 _Bool gple_remove_route_entry(struct glob_peer_list_entry* gple, int rel_no);
 void gpl_init(struct glob_peer_list* gpl);
-struct glob_peer_list_entry* gpl_add(struct glob_peer_list* gpl, char* name, char* mac);
+struct glob_peer_list_entry* gpl_add(struct glob_peer_list* gpl, char* name, int u_id);
 void gpl_remove(struct glob_peer_list* gpl, int gpl_i);
 void gpl_free(struct glob_peer_list* gpl);
-int has_peer(struct peer_list* pl, char* mac);
-struct glob_peer_list_entry* glob_peer_route(struct peer_list* pl, char* mac, int el, _Bool* cont);
+int has_peer(struct peer_list* pl, char* name, int u_id);
+struct glob_peer_list_entry* glob_peer_route(struct peer_list* pl, int u_id, int el, _Bool* cont);
+_Bool in_glob_route(struct peer_list* pl, int pl_ind);
 void rt_init(struct read_thread* rt);
 pthread_t add_read_thread(struct peer_list* pl, void *(*read_th_fnc) (void *));
+int assign_uid();

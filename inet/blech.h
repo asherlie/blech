@@ -6,7 +6,8 @@
 #define FROM_OTHR 5
 
 struct loc_addr_clnt_num{
-      struct sockaddr_in l_a; int clnt_num;
+      struct sockaddr_in l_a; 
+      int clnt_num, u_id;
       // [client name, mac]
       char** clnt_info;
       _Bool continuous;

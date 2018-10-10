@@ -1,14 +1,16 @@
 #include "peer_list.h"
 
+int next_uid = 0;
+
 void gpl_init(struct glob_peer_list* gpl){
       gpl->sz = 0;
       gpl->cap = 1;
       gpl->gpl = malloc(sizeof(struct glob_peer_list_entry)*gpl->cap);
 }
 
-struct glob_peer_list_entry* gpl_add(struct glob_peer_list* gpl, char* name, char* mac){
+struct glob_peer_list_entry* gpl_add(struct glob_peer_list* gpl, char* name, int u_id){
       #ifdef DEBUG
-      printf("adding gpl entry with mac: %s\n", mac);
+      printf("adding gpl entry with u_id: %i\n", u_id);
       #endif
       if(gpl->sz == gpl->cap){
             gpl->cap *= 2;
@@ -19,7 +21,7 @@ struct glob_peer_list_entry* gpl_add(struct glob_peer_list* gpl, char* name, cha
       }
       gpl->gpl[gpl->sz].clnt_info = malloc(sizeof(char*)*2);
       gpl->gpl[gpl->sz].clnt_info[0] = name;
-      gpl->gpl[gpl->sz].clnt_info[1] = mac;
+      gpl->gpl[gpl->sz].u_id = u_id;
       gpl->gpl[gpl->sz].dir_p_cap = 20;
       gpl->gpl[gpl->sz].n_dir_p = 0;
       gpl->gpl[gpl->sz].dir_p = malloc(sizeof(int)*gpl->gpl[gpl->sz].dir_p_cap);
@@ -103,7 +105,7 @@ void rt_init(struct read_thread* rt){
       rt->th = malloc(sizeof(pthread_t)*rt->cap);
 }
 
-void pl_add(struct peer_list* pl, struct sockaddr_in la, int clnt_num, char* name, char* mac){
+void pl_add(struct peer_list* pl, struct sockaddr_in la, int clnt_num, char* name, int u_id){
       pthread_mutex_lock(&pl->pl_lock);
       if(pl->sz == pl->cap){
             pl->cap *= 2;
@@ -119,15 +121,23 @@ void pl_add(struct peer_list* pl, struct sockaddr_in la, int clnt_num, char* nam
             strcpy(pl->l_a[pl->sz].clnt_info[0], "[unknown]");
       }
       else pl->l_a[pl->sz].clnt_info[0] = name;
-      if(!mac){
-            pl->l_a[pl->sz].clnt_info[1] = malloc(10);
-            strcpy(pl->l_a[pl->sz].clnt_info[1], "[unknown]");
-      }
-      else pl->l_a[pl->sz].clnt_info[1] = mac;
+      /*
+       *if(!mac){
+       *      pl->l_a[pl->sz].clnt_info[1] = malloc(10);
+       *      strcpy(pl->l_a[pl->sz].clnt_info[1], "[unknown]");
+       *}
+       */
+      pl->l_a[pl->sz].u_id = u_id;
+      /*else pl->l_a[pl->sz].clnt_info[1] = mac;*/
       pl->l_a[pl->sz].continuous = 1;
+      // made obsolete by in_glob_route
+      /*pl->l_a[pl->sz].in_route = 0;*/
       pl->l_a[pl->sz++].clnt_num = clnt_num;
       // TODO:
       /*create a new thread to read and keep it in pl->r_th*/
+      #ifdef DEBUG
+      printf("pl_add: new peer with name: %s has been added\n", pl->l_a[pl->sz-1].clnt_info[0]);
+      #endif
       pthread_mutex_unlock(&pl->pl_lock);
       add_read_thread(pl, pl->read_func);
 }
@@ -144,6 +154,7 @@ int pl_remove(struct peer_list* pl, int peer_ind, char** gpl_i){
       int gpl_s = 0;
       memmove(pl->l_a+peer_ind, pl->l_a+peer_ind+1, pl->sz-peer_ind-1);
       // adjusting gpl routes
+      /*int tmp_route = -1;*/
       for(int i = 0; i < pl->gpl->sz; ++i){
             gple_remove_route_entry(&pl->gpl->gpl[i], peer_ind);
             // if gpl->gpl[i] is inaccessible
@@ -193,6 +204,15 @@ void gpl_free(struct glob_peer_list* gpl){
       free(gpl->gpl);
 }
 
+_Bool in_glob_route(struct peer_list* pl, int pl_ind){
+      for(int i = 0; i < pl->gpl->sz; ++i){
+            for(int j = 0; j < pl->gpl->gpl[i].n_dir_p; ++j){
+                  if(pl->gpl->gpl[i].dir_p[j] == pl_ind)return 1;
+            }
+      }
+      return 0;
+}
+
 void pl_print(struct peer_list* pl){
       printf("printing %i local peers and %i global peers\n", pl->sz, pl->gpl->sz);
       for(int i = 0; i < pl->sz; ++i){
@@ -204,9 +224,9 @@ void pl_print(struct peer_list* pl){
 }
 
 // if cont, *cont is set to if el is already in my route to mac
-struct glob_peer_list_entry* glob_peer_route(struct peer_list* pl, char* mac, int el, _Bool* cont){
+struct glob_peer_list_entry* glob_peer_route(struct peer_list* pl, int u_id, int el, _Bool* cont){
       for(int i = 0; i < pl->gpl->sz; ++i){
-            if(strstr(pl->gpl->gpl[i].clnt_info[1], mac)){
+            if(pl->gpl->gpl[i].u_id == u_id){
                   if(cont){
                         *cont = 0;
                         for(int j = 0; j < pl->gpl->gpl[i].n_dir_p; ++j)
@@ -222,11 +242,16 @@ struct glob_peer_list_entry* glob_peer_route(struct peer_list* pl, char* mac, in
 }
 
 /*returns 3 if peer is me, 1 if local peer, 2 if global, 0 else*/
-int has_peer(struct peer_list* pl, char* mac){
-      if(strstr(pl->local_mac, mac))return 3;
+// TODO: this should not rely on name - nicks are not unique
+int has_peer(struct peer_list* pl, char* name, int u_id){
+      if(strstr(pl->name, name))return 3;
       for(int i = 0; i < pl->sz; ++i)
-            if(strstr(pl->l_a[i].clnt_info[1], mac))
+            if(strstr(pl->l_a[i].clnt_info[0], name))
                   return 1;
-      if(glob_peer_route(pl, mac, -1, NULL))return 2;
+      if(glob_peer_route(pl, u_id, -1, NULL))return 2;
       return 0;
+}
+
+int assign_uid(){
+      return next_uid++;
 }
