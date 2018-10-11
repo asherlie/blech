@@ -147,7 +147,7 @@ int pl_remove(struct peer_list* pl, int peer_ind, char** gpl_i){
       pl->l_a[peer_ind].continuous = 0;
       // this is seg faulting
       free(pl->l_a[peer_ind].clnt_info[0]);
-      free(pl->l_a[peer_ind].clnt_info[1]);
+      /*free(pl->l_a[peer_ind].clnt_info[1]);*/
       int gpl_s = 0;
       memmove(pl->l_a+peer_ind, pl->l_a+peer_ind+1, pl->sz-peer_ind-1);
       // adjusting gpl routes

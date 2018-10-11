@@ -54,7 +54,9 @@ _Bool abs_snd_msg(struct loc_addr_clnt_num* la, int n, int msg_type, int sender_
             if(recp >= 0)ret = (send(la[i].clnt_num, &recp, 4, 0L) == 4) && ret;
             if(sender_sz)ret = (send(la[i].clnt_num, sender, 30, 0L) == 30) && ret;
             if(msg_sz)ret = (send(la[i].clnt_num, msg, msg_sz, 0L) == msg_sz) && ret;
+            // this is being sent but not being read by read_messages_pth - waiting for new u_id
             if(adtnl_int >= 0)ret = (send(la[i].clnt_num, &adtnl_int, 4, 0L) == 4) && ret;
+            /*if(adtnl_int >= 0)puts("SENDING ADTNL INT");*/
       }
       return ret;
 }
@@ -181,9 +183,15 @@ void read_messages_pth(struct read_msg_arg* rma){
       while(rma->pl->l_a[rma->index].continuous){
             read(rma->pl->l_a[rma->index].clnt_num, &msg_type, 4);
             read(rma->pl->l_a[rma->index].clnt_num, &cur_msg_no, 4);
-            // recp
+            #ifdef DEBUG
+            puts("msg type and message number have been read");
+            #endif
+            // recp refers to the intended recipient of the message's u_id
             if(msg_type == MSG_PASS || msg_type == PEER_PASS || msg_type == MSG_BLAST || msg_type == PEER_EXIT){
                   read(rma->pl->l_a[rma->index].clnt_num, &recp, 4);
+                  #ifdef DEBUG
+                  puts("recipient has been read");
+                  #endif
                   /*if(msg_type == MSG_PASS)la_r = find_peer(rma->pl, recp);*/
                   la_r = find_peer(rma->pl, recp);
                   // is this a local peer?
@@ -191,11 +199,24 @@ void read_messages_pth(struct read_msg_arg* rma){
             if(msg_type == MSG_PASS || msg_type == MSG_BLAST || msg_type == MSG_SND || msg_type == PEER_PASS)
                   // name of sender
                   read(rma->pl->l_a[rma->index].clnt_num, name, 30);
+                  #ifdef DEBUG
+                  puts("name has been read");
+                  #endif
             // peer pass now sends new peer nickname in msg field
             if(msg_type != PEER_EXIT/* && msg_type != PEER_PASS*/)msg_sz = read(rma->pl->l_a[rma->index].clnt_num, buf, sizeof(buf));
+            /*printf("got %s from msg buf\n", buf);*/
             // only instance as of now where op_int is used
             int new_u_id = -1;
-            if(msg_type == PEER_PASS)read(rma->pl->l_a[rma->index].clnt_num, &new_u_id, 4);
+            if(msg_type == PEER_PASS){
+                  #ifdef DEBUG
+                  puts("waiting for new u_id...");
+                  #endif
+                  // TODO: this isn't being sent by the abs_snd_msg
+                  read(rma->pl->l_a[rma->index].clnt_num, &new_u_id, 4);
+                  #ifdef DEBUG
+                  puts("new user u_id has been read");
+                  #endif
+            }
             // propogation
             if(msg_type == MSG_PASS || msg_type == MSG_BLAST || msg_type == PEER_PASS/* || msg_type == PEER_EXIT*/){
                   /*if(already_recvd_msg(msg_num))continue;*/
@@ -252,7 +273,7 @@ void read_messages_pth(struct read_msg_arg* rma){
                   if(route)gple_add_route_entry(route, rma->index);
                   // recp here refers not to the new user as it should, but to me or an existing peer
                   /*else gple_add_route_entry(gpl_add(rma->pl->gpl, strdup(name), recp), rma->index);*/
-                  else gple_add_route_entry(gpl_add(rma->pl->gpl, strdup(name), new_u_id), rma->index);
+                  else gple_add_route_entry(gpl_add(rma->pl->gpl, strdup(buf), new_u_id), rma->index);
                   pthread_mutex_unlock(&rma->pl->pl_lock);
                   /*init_prop_msg(rma->pl, PEER_PASS, NULL, 0);*/
                   /*
