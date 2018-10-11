@@ -149,8 +149,8 @@ void accept_connections(struct peer_list* pl){
             for(int i = 0; i < pl->sz-1; ++i){
                   /*snd_msg(&pl->l_a[pl->sz-1], 1, PEER_PASS, pl->l_a[i].clnt_info[0], 30, pl->l_a[i].clnt_info[1], pl->name);*/
                   // new peer nickname goes in msg field message field
-                  /*abs_snd_msg(&pl->l_a[pl->sz-1], 1, PEER_PASS, 30, 30, pl->l_a[pl->sz-1].u_id, pl->name, pl->l_a[i].clnt_info[0], msg_no++);*/
                   abs_snd_msg(&pl->l_a[pl->sz-1], 1, PEER_PASS, 30, 30, pl->l_a[pl->sz-1].u_id, pl->l_a[i].clnt_info[0], pl->name, msg_no++, pl->l_a[i].u_id);
+                  /*abs_snd_msg(&pl->l_a[pl->sz-1], 1, PEER_PASS, 30, 30, pl->l_a[pl->sz-1].u_id, pl->name, pl->l_a[i].clnt_info[0], msg_no++, pl->l_a[i].u_id);*/
                   usleep(1000);
             }
             // alerting new peer of current global peers
@@ -161,6 +161,7 @@ void accept_connections(struct peer_list* pl){
             for(int i = 0; i < pl->gpl->sz; ++i){
                   // new peer nickname goes in msg field message field
                   abs_snd_msg(&pl->l_a[pl->sz-1], 1, PEER_PASS, 30, 30, pl->l_a[pl->sz-1].u_id, pl->gpl->gpl[i].clnt_info[0], pl->name, msg_no++, pl->gpl->gpl[i].u_id);
+                  /*abs_snd_msg(&pl->l_a[pl->sz-1], 1, PEER_PASS, 30, 30, pl->l_a[pl->sz-1].u_id, pl->name, pl->gpl->gpl[i].clnt_info[0], msg_no++, pl->gpl->gpl[i].u_id);*/
                   usleep(1000);
             }
             pthread_mutex_unlock(&pl->pl_lock);
