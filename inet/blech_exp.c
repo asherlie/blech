@@ -197,7 +197,7 @@ void read_messages_pth(struct read_msg_arg* rma){
             int new_u_id = -1;
             if(msg_type == PEER_PASS)read(rma->pl->l_a[rma->index].clnt_num, &new_u_id, 4);
             // propogation
-            if(msg_type == MSG_PASS || msg_type == MSG_BLAST || msg_type == PEER_PASS || msg_type == PEER_EXIT){
+            if(msg_type == MSG_PASS || msg_type == MSG_BLAST || msg_type == PEER_PASS/* || msg_type == PEER_EXIT*/){
                   /*if(already_recvd_msg(msg_num))continue;*/
                   /*printf("cur msg no: %i, pre msg no: %i\n", cur_msg_no, pre_msg_no);*/
                   if(cur_msg_no == pre_msg_no || (msg_type == PEER_PASS && new_u_id == rma->pl->u_id))continue;
@@ -205,8 +205,9 @@ void read_messages_pth(struct read_msg_arg* rma){
                   struct glob_peer_list_entry* route = NULL;
                   if(la_r){
                         // name is who it's from
+                        // TODO: this is incorrect for PEER_EXIT
                         snd_msg(la_r, 1, msg_type, buf, msg_sz, la_r->u_id, name);
-                        snd_msg(pl->l_a, pl->sz, PEER_EXIT, NULL, 0, pl->u_id, NULL);
+                        /*snd_msg(pl->l_a, pl->sz, PEER_EXIT, NULL, 0, pl->u_id, NULL);*/
                   }
                   // we can make the assumption that all peers have the same ((local peer list) U (global peer list))
                   // and that the message was initialized with `init_prop_msg`
