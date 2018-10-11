@@ -181,22 +181,8 @@ void read_messages_pth(struct read_msg_arg* rma){
       while(rma->pl->l_a[rma->index].continuous){
             read(rma->pl->l_a[rma->index].clnt_num, &msg_type, 4);
             read(rma->pl->l_a[rma->index].clnt_num, &cur_msg_no, 4);
-            if(msg_type == PEER_EXIT){
-                  printf("user %s has disconnected\n", rma->pl->l_a[rma->index].clnt_info[0]);
-                  char* lost_route[rma->pl->gpl->sz];
-                  #ifdef DEBUG
-                  puts("attempting to remove peer list entry");
-                  #endif
-                  int lost = pl_remove(rma->pl, rma->index, lost_route);
-                  #ifdef DEBUG
-                  puts("SUCCESS");
-                  #endif
-                  for(int i = 0; i < lost; ++i)
-                        printf("route to global peer %s has been lost\n", lost_route[i]);
-                  return;
-            }
             // recp
-            if(msg_type == MSG_PASS || msg_type == PEER_PASS || msg_type == MSG_BLAST){
+            if(msg_type == MSG_PASS || msg_type == PEER_PASS || msg_type == MSG_BLAST || msg_type == PEER_EXIT){
                   read(rma->pl->l_a[rma->index].clnt_num, &recp, 4);
                   /*if(msg_type == MSG_PASS)la_r = find_peer(rma->pl, recp);*/
                   la_r = find_peer(rma->pl, recp);
@@ -220,6 +206,7 @@ void read_messages_pth(struct read_msg_arg* rma){
                   if(la_r){
                         // name is who it's from
                         snd_msg(la_r, 1, msg_type, buf, msg_sz, la_r->u_id, name);
+                        snd_msg(pl->l_a, pl->sz, PEER_EXIT, NULL, 0, pl->u_id, NULL);
                   }
                   // we can make the assumption that all peers have the same ((local peer list) U (global peer list))
                   // and that the message was initialized with `init_prop_msg`
@@ -228,13 +215,27 @@ void read_messages_pth(struct read_msg_arg* rma){
                         snd_msg(&rma->pl->l_a[route->dir_p[0]], 1, msg_type, buf, msg_sz, recp, name);
                   }
             }
+            if(msg_type == PEER_EXIT){
+                  printf("user %s has disconnected\n", rma->pl->l_a[rma->index].clnt_info[0]);
+                  char* lost_route[rma->pl->gpl->sz];
+                  #ifdef DEBUG
+                  puts("attempting to remove peer list entry");
+                  #endif
+                  int lost = pl_remove(rma->pl, rma->index, lost_route);
+                  #ifdef DEBUG
+                  puts("SUCCESS");
+                  #endif
+                  for(int i = 0; i < lost; ++i)
+                        printf("route to global peer %s has been lost\n", lost_route[i]);
+                  return;
+            }
             // if we'll be alerting
             if(msg_type == MSG_BLAST || msg_type == MSG_SND){
                   printf("%s%s%s: %s\n", (has_peer(rma->pl, name, -1) == 1) ? ANSI_BLU : ANSI_GRE, name, ANSI_NON, buf);
             }
             if(msg_type == PEER_PASS){
                   #ifdef DEBUG
-                  printf("received a PEER_PASS msg from %s@%s\n", rma->pl->l_a[rma->index].clnt_info[0], rma->pl->l_a[rma->index].clnt_info[1]);
+                  printf("received a PEER_PASS msg from %s@%i\n", rma->pl->l_a[rma->index].clnt_info[0], rma->pl->l_a[rma->index].u_id);
                   #endif
                   _Bool has_route;
                   struct glob_peer_list_entry* route = glob_peer_route(rma->pl, recp, rma->index, &has_route);
@@ -274,7 +275,9 @@ void read_messages_pth(struct read_msg_arg* rma){
 void safe_exit(struct peer_list* pl){
       pl->continuous = 0;
       pthread_mutex_lock(&pl->pl_lock);
-      snd_msg(pl->l_a, pl->sz, PEER_EXIT, NULL, 0, -1, NULL);
+      snd_msg(pl->l_a, pl->sz, PEER_EXIT, NULL, 0, pl->u_id, NULL);
+      // TODO: this should use init_prop_msg
+      /*init_prop_msg();*/
       pthread_mutex_unlock(&pl->pl_lock);
 }
 
