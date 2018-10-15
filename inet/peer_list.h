@@ -66,7 +66,7 @@ void gpl_init(struct glob_peer_list* gpl);
 struct glob_peer_list_entry* gpl_add(struct glob_peer_list* gpl, char* name, int u_id);
 void gpl_remove(struct glob_peer_list* gpl, int gpl_i);
 void gpl_free(struct glob_peer_list* gpl);
-int has_peer(struct peer_list* pl, char* name, int u_id);
+int has_peer(struct peer_list* pl, char* name, int u_id, int* u_id_set);
 struct glob_peer_list_entry* glob_peer_route(struct peer_list* pl, int u_id, int el, _Bool* cont);
 _Bool in_glob_route(struct peer_list* pl, int pl_ind);
 void rt_init(struct read_thread* rt);

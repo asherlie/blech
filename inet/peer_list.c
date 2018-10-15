@@ -240,11 +240,13 @@ struct glob_peer_list_entry* glob_peer_route(struct peer_list* pl, int u_id, int
 
 /*returns 3 if peer is me, 1 if local peer, 2 if global, 0 else*/
 // TODO: this should not rely on name - nicks are not unique
-int has_peer(struct peer_list* pl, char* name, int u_id){
+int has_peer(struct peer_list* pl, char* name, int u_id, int* u_id_set){
       if(strstr(pl->name, name))return 3;
       for(int i = 0; i < pl->sz; ++i)
-            if(strstr(pl->l_a[i].clnt_info[0], name))
+            if(strstr(pl->l_a[i].clnt_info[0], name)){
+                  if(u_id_set)*u_id_set = pl->l_a[i].u_id;
                   return 1;
+            }
       if(glob_peer_route(pl, u_id, -1, NULL))return 2;
       return 0;
 }
