@@ -19,7 +19,7 @@
 
 struct glob_peer_list_entry{
       int u_id;
-      // [client name, mac]
+      // [client name, addr]
       char** clnt_info;
       // dir_p is next peer in chain to dest peer
       int* dir_p;
