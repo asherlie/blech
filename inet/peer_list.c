@@ -169,7 +169,7 @@ int pl_remove(struct peer_list* pl, int peer_ind, char** gpl_i){
             gple_remove_route_entry(&pl->gpl->gpl[i], peer_ind);
             // if gpl->gpl[i] is inaccessible
             if(!pl->gpl->gpl[i].n_dir_p){
-                  gpl_remove(pl->gpl, i);
+                  gpl_remove(pl->gpl, i, 1);
                   if(gpl_i)gpl_i[gpl_s] = pl->gpl->gpl[i].clnt_info[0];
                   ++gpl_s;
             }
@@ -201,16 +201,16 @@ void pl_free(struct peer_list* pl){
 }
 
 // TODO: synch issues?
-void gpl_remove(struct glob_peer_list* gpl, int gpl_i){
-      free(gpl->gpl[gpl_i].clnt_info[0]);
-      free(gpl->gpl[gpl_i].clnt_info[1]);
+void gpl_remove(struct glob_peer_list* gpl, int gpl_i, _Bool keep_name){
+      for(int i = keep_name; i < 2; ++i)
+            free(gpl->gpl[gpl_i].clnt_info[i]);
       free(gpl->gpl[gpl_i].dir_p);
       memmove(gpl->gpl+gpl_i, gpl->gpl+gpl_i+1, gpl->sz-gpl_i-1);
       --gpl->sz;
 }
 
 void gpl_free(struct glob_peer_list* gpl){
-      for(; gpl->sz; gpl_remove(gpl, 0));
+      for(; gpl->sz; gpl_remove(gpl, 0, 0));
       free(gpl->gpl);
 }
 
