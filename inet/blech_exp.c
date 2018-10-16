@@ -130,29 +130,15 @@ void accept_connections(struct peer_list* pl){
             printf("sending new peer info to %i local peers from peer %s\n", pl->sz-1, pl->l_a[pl->sz-1].clnt_info[0]);
             printf("sending existing peer info from %i local peers to new peer\n", pl->sz-1);
             #endif
-            /*
-             *for(int i = 0; i < pl->sz-1; ++i){
-             *      abs_snd_msg(&pl->l_a[pl->sz-1], 1, PEER_PASS, 30, 30, pl->l_a[pl->sz-1], pl->name, pl->l_a[i]);
-             *}
-             */
-
-
-
-
             for(int i = 0; i < pl->sz-1; ++i){
-                  /*snd_msg(&pl->l_a[pl->sz-1], 1, PEER_PASS, pl->l_a[i].clnt_info[0], 30, pl->l_a[i].clnt_info[1], pl->name);*/
                   // new peer nickname goes in msg field message field
                   usleep(1000);
-                  /*abs_snd_msg(&pl->l_a[pl->sz-1], 1, PEER_PASS, 30, 30, pl->l_a[pl->sz-1].u_id, pl->l_a[i].clnt_info[0], pl->name, msg_no++, pl->l_a[i].u_id);*/
                   abs_snd_msg(&pl->l_a[pl->sz-1], 1, PEER_PASS, 30, 30, pl->l_a[pl->sz-1].u_id, pl->name, pl->l_a[i].clnt_info[0], msg_no++, pl->l_a[i].u_id);
                   #ifdef DEBUG
-                  /*printf("sent peer with number %i to existing peer #%i\n", pl->l_a[i].u_id, );*/
                   printf("sent local peer number %i info about peer #%i\n", pl->sz-1, pl->l_a[i].u_id);
                   #endif
-                  /*abs_snd_msg(&pl->l_a[pl->sz-1], 1, PEER_PASS, 30, 30, pl->l_a[pl->sz-1].u_id, pl->name, pl->l_a[i].clnt_info[0], msg_no++, pl->l_a[i].u_id);*/
             }
             // alerting new peer of current global peers
-            // this is alerting them of themselves
             #ifdef DEBUG
             printf("sending new info to %i glob\n", pl->gpl->sz);
             #endif
@@ -215,14 +201,8 @@ _Bool read_msg_msg_blast(struct peer_list* pl, int* recp, char* sndr_name, char*
 
 // peer pass uses all fields
 _Bool read_msg_peer_pass(struct peer_list* pl, int* recp, char* sndr_name, char* msg, int* new_u_id, int peer_no){
-      #ifdef DEBUG
-      puts("read_msg_peer_pass has been entered");
-      #endif
       read_messages(pl->l_a[peer_no].clnt_num, recp, &sndr_name, &msg, new_u_id, 30);
       struct loc_addr_clnt_num* la_r = find_peer(pl, *recp);
-      #ifdef DEBUG
-      puts("about to exit read_msg_peer_pass");
-      #endif
       return prop_msg(la_r, peer_no, pl, PEER_PASS, 30, msg, *recp, sndr_name, *new_u_id);
 }
 
@@ -243,7 +223,6 @@ void read_messages_pth(struct read_msg_arg* rma){
             #endif
             read(rma->pl->l_a[rma->index].clnt_num, &msg_type, 4);
             read(rma->pl->l_a[rma->index].clnt_num, &cur_msg_no, 4);
-            // check not yet implemented
             if(pre_msg_no == cur_msg_no)puts("uhoh");
             #ifdef DEBUG
             puts("msg type and message number have been read - awaiting more messages");
@@ -252,28 +231,16 @@ void read_messages_pth(struct read_msg_arg* rma){
             // recp refers to the intended recipient of the message's u_id
             switch(msg_type){
                   case MSG_SND:
-                        #ifdef DEBUG
-                        fputs("MSG_SND read about to begin...", stdout);
-                        #endif
                         read_msg_msg_snd(rma->pl, &recp, name, buf, rma->index);
-                        #ifdef DEBUG
-                        puts("done");
-                        #endif
                         printf("%s%s%s: %s\n", (has_peer(rma->pl, name, -1, NULL) == 1) ? ANSI_BLU : ANSI_GRE, name, ANSI_NON, buf);
                         break;
                   case MSG_PASS:
                         read_msg_msg_pass(rma->pl, &recp, name, buf, rma->index);
                         break;
                   case PEER_PASS:
-                        #ifdef DEBUG
-                        fputs("PEER_PASS read about to begin...", stdout);
-                        #endif
                         /*pthread_mutex_lock(&rma->pl->sock_lock);*/
                         read_msg_peer_pass(rma->pl, &recp, name, buf, &new_u_id, rma->index);
                         /*pthread_mutex_unlock(&rma->pl->sock_lock);*/
-                        #ifdef DEBUG
-                        puts("done");
-                        #endif
                         _Bool has_route;
                         struct glob_peer_list_entry* route = glob_peer_route(rma->pl, recp, rma->index, &has_route);
                         if(route && has_route)continue;
@@ -320,8 +287,6 @@ void safe_exit(struct peer_list* pl){
       pl->continuous = 0;
       pthread_mutex_lock(&pl->pl_lock);
       init_prop_msg(pl, 0, PEER_EXIT, NULL, 0, -1);
-      // TODO: this should use init_prop_msg
-      /*init_prop_msg();*/
       pthread_mutex_unlock(&pl->pl_lock);
 }
 
@@ -338,7 +303,6 @@ int main(int argc, char** argv){
       if(argc >= 3)sterm = argv[2];
       printf("hello %s, welcome to blech\n", pl->name);
       if(sterm){
-            /*char* mac;*/
             printf("looking for peer matching search string: \"%s\"\n", sterm);
             // sterm is ip
             int s, p_u_id;
@@ -346,29 +310,11 @@ int main(int argc, char** argv){
             if(bound == 0){
                   puts("succesfully established a connection");
                   // reading our newly assigned user id
-                  #ifdef DEBUG
-                  fputs("waiting for my u_id assignment...", stdout);
-                  #endif
                   read(s, &pl->u_id, 4);
-                  #ifdef DEBUG
-                  puts("got it!");
-                  #endif
                   send(s, pl->name, 30, 0L);
                   char p_name[30] = {0};
-                  #ifdef DEBUG
-                  fputs("waiting for new peer's preferred name...", stdout);
-                  #endif
                   read(s, p_name, 30);
-                  #ifdef DEBUG
-                  puts("got it!");
-                  #endif
-                  #ifdef DEBUG
-                  fputs("waiting for new peer's u_id...", stdout);
-                  #endif
                   read(s, &p_u_id, 4);
-                  #ifdef DEBUG
-                  puts("got it!");
-                  #endif
                   // printing after we've read preferred name info to assure it's blech network we've connected to
                   printf("you have joined %s~the network~%s\n", ANSI_RED, ANSI_NON);
                   struct sockaddr_in la;
