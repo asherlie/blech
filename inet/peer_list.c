@@ -100,6 +100,10 @@ void pl_init(struct peer_list* pl, uint16_t port_num){
       pthread_mutex_t pmu;
       pthread_mutex_init(&pmu, NULL);
       pl->pl_lock = pmu;
+      pthread_mutex_t smu;
+      pthread_mutex_init(&smu, NULL);
+      pl->sock_lock = smu;
+      pl->read_th_wait = 0;
 }
 
 void rt_init(struct read_thread* rt){
@@ -136,6 +140,15 @@ void pl_add(struct peer_list* pl, struct sockaddr_in la, int clnt_num, char* nam
       printf("pl_add: new peer with name: %s has been added\n", pl->l_a[pl->sz-1].clnt_info[0]);
       #endif
       pthread_mutex_unlock(&pl->pl_lock);
+      if(pl->read_th_wait){
+            #ifdef DEBUG
+            puts("waiting for accept_thread to gather info");
+            #endif
+            while(pl->read_th_wait)usleep(1000);
+      }
+      #ifdef DEBUG
+      puts("info gathered!");
+      #endif
       add_read_thread(pl, pl->read_func);
 }
 

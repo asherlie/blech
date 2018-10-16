@@ -128,14 +128,20 @@ void accept_connections(struct peer_list* pl){
       int u_id = -1;
       while(pl->continuous){
             clnt = accept(pl->local_sock, (struct sockaddr *)&rem_addr, &opt);
+            // don't set this if we're adding a peer who ATTACHED TO US
+            pl->read_th_wait = 1;
             // we want to assign a new unique id to our new peer
             u_id = assign_uid(pl);
+            #ifdef DEBUG
+            printf("assign_uid called by accept_connections with result: %i\n", u_id);
+            #endif
             send(clnt, &u_id, 4, 0L);
             // as soon as a new client is added, wait for them to send their desired name
             read(clnt, name, 30);
             send(clnt, pl->name, 30, 0L);
             // sending our u_id
             send(clnt, &pl->u_id, 4, 0L);
+            pl->read_th_wait = 0;
             #ifdef DEBUG
             printf("accepted connection from %s. assigned new user u_id: %i\n", name, u_id);
             #endif
@@ -159,7 +165,6 @@ void accept_connections(struct peer_list* pl){
             #ifdef DEBUG
             printf("sending new peer info to %i local peers from peer %s\n", pl->sz-1, pl->l_a[pl->sz-1].clnt_info[0]);
             printf("sending existing peer info from %i local peers to new peer\n", pl->sz-1);
-            printf("fields will be abs_snd_msg(pl->l_alast, 1, PEER_PASS, 30, 30, %i, %s, %s, msgno)\n", pl->l_a[pl->sz-1].u_id, pl->name, pl->l_a[0].clnt_info[0]);
             #endif
             /*
              *for(int i = 0; i < pl->sz-1; ++i){
@@ -199,14 +204,55 @@ void accept_connections(struct peer_list* pl){
             memset(name, 0, sizeof(name));
             /*memset((char*)addr, 0, sizeof(addr));*/
             /*free(addr);*/
+            #ifdef DEBUG
+            puts("sharing complete");
+            #endif
       }
 }
 
-_Bool read_messages(int s, int* recp, char** name, char** msg, int* adtnl_int){
-      if(recp)read(s, recp, 4);
-      if(name)read(s, *name, 30);
-      if(msg)read(s, *msg, 1024);
-      if(adtnl_int)read(s, adtnl_int, 1024);
+// if msg size is unspecified or msg_type != PEER_PASS, msg_sz_cap can be safely set to 0
+_Bool read_messages(int s, int* recp, char** name, char** msg, int* adtnl_int, int msg_sz_cap){
+      int sz = 0;
+      if(recp){
+            #ifdef DEBUG
+            puts("attempting to read: recp");
+            #endif
+            sz = read(s, recp, 4);
+            #ifdef DEBUG
+            printf("read %i bytes\n", sz);
+            puts("done");
+            #endif
+      }
+      if(name){
+            #ifdef DEBUG
+            puts("attempting to read: name");
+            #endif
+            sz = read(s, *name, 30);
+            #ifdef DEBUG
+            printf("read %i bytes\n", sz);
+            puts("done");
+            #endif
+      }
+      if(msg){
+            #ifdef DEBUG
+            puts("attempting to read: msg");
+            #endif
+            sz = read(s, *msg, (msg_sz_cap) ? msg_sz_cap : 1024);
+            #ifdef DEBUG
+            printf("read %i bytes\n", sz);
+            puts("done");
+            #endif
+      }
+      if(adtnl_int){
+            #ifdef DEBUG
+            puts("attempting to read: adtnl_int");
+            #endif
+            sz = read(s, adtnl_int, 1024);
+            #ifdef DEBUG
+            printf("read %i bytes\n", sz);
+            puts("done");
+            #endif
+      }
       return 1;
 }
 
@@ -229,26 +275,32 @@ _Bool prop_msg(struct loc_addr_clnt_num* la, int peer_no, struct peer_list* pl,
 // these wrappers handle propogation
 // peer_no refers to the rma->index of the caller/peer number of the sender
 _Bool read_msg_msg_pass(struct peer_list* pl, int* recp, char* sndr_name, char* msg, int peer_no){
-      read_messages(pl->l_a[peer_no].clnt_num, recp, &sndr_name, &msg, NULL);
+      read_messages(pl->l_a[peer_no].clnt_num, recp, &sndr_name, &msg, NULL, 0);
       struct loc_addr_clnt_num* la_r = find_peer(pl, *recp);
       return prop_msg(la_r, peer_no, pl, MSG_PASS, 1024, msg, *recp, sndr_name, -1);
 }
 
 _Bool read_msg_msg_blast(struct peer_list* pl, int* recp, char* sndr_name, char* msg, int peer_no){
-      read_messages(pl->l_a[peer_no].clnt_num, recp, &sndr_name, &msg, NULL);
+      read_messages(pl->l_a[peer_no].clnt_num, recp, &sndr_name, &msg, NULL, 0);
       struct loc_addr_clnt_num* la_r = find_peer(pl, *recp);
       return prop_msg(la_r, peer_no, pl, MSG_BLAST, 1024, msg, *recp, sndr_name, -1);
 }
 
 // peer pass uses all fields
 _Bool read_msg_peer_pass(struct peer_list* pl, int* recp, char* sndr_name, char* msg, int* new_u_id, int peer_no){
-      read_messages(pl->l_a[peer_no].clnt_num, recp, &sndr_name, &msg, new_u_id);
+      #ifdef DEBUG
+      puts("read_msg_peer_pass has been entered");
+      #endif
+      read_messages(pl->l_a[peer_no].clnt_num, recp, &sndr_name, &msg, new_u_id, 30);
       struct loc_addr_clnt_num* la_r = find_peer(pl, *recp);
-      return prop_msg(la_r, peer_no, pl, MSG_PASS, 1024, msg, *recp, sndr_name, *new_u_id);
+      #ifdef DEBUG
+      puts("about to exit read_msg_peer_pass");
+      #endif
+      return prop_msg(la_r, peer_no, pl, PEER_PASS, 30, msg, *recp, sndr_name, *new_u_id);
 }
 
 _Bool read_msg_msg_snd(struct peer_list* pl, int* recp, char* sndr_name, char* msg, int peer_no){
-      return read_messages(pl->l_a[peer_no].clnt_num, recp, &sndr_name, &msg, NULL);
+      return read_messages(pl->l_a[peer_no].clnt_num, recp, &sndr_name, &msg, NULL, 0);
 }
 
 void read_messages_pth(struct read_msg_arg* rma){
@@ -259,6 +311,7 @@ void read_messages_pth(struct read_msg_arg* rma){
       int msg_sz = 0;
       struct loc_addr_clnt_num* la_r = NULL;
       int new_u_id;
+      /*while(rma->pl->read_th_wait)usleep(10000);*/
       while(rma->pl->l_a[rma->index].continuous){
             #ifdef DEBUG
             int n_reads = 0;
@@ -266,21 +319,36 @@ void read_messages_pth(struct read_msg_arg* rma){
             read(rma->pl->l_a[rma->index].clnt_num, &msg_type, 4);
             read(rma->pl->l_a[rma->index].clnt_num, &cur_msg_no, 4);
             #ifdef DEBUG
-            puts("msg type and message number have been read");
+            puts("msg type and message number have been read - awaiting more messages");
             n_reads += 2;
             #endif
             // recp refers to the intended recipient of the message's u_id
             /*printf("%s%s%s: %s\n", (has_peer(rma->pl, name, -1, NULL) == 1) ? ANSI_BLU : ANSI_GRE, name, ANSI_NON, buf);*/
             switch(msg_type){
                   case MSG_SND:
+                        #ifdef DEBUG
+                        fputs("MSG_SND read about to begin...", stdout);
+                        #endif
                         read_msg_msg_snd(rma->pl, &recp, name, buf, rma->index);
+                        #ifdef DEBUG
+                        puts("done");
+                        #endif
                         printf("%s%s%s: %s\n", (has_peer(rma->pl, name, -1, NULL) == 1) ? ANSI_BLU : ANSI_GRE, name, ANSI_NON, buf);
                         break;
                   case MSG_PASS:
+                        // why is this being reached during a peer pass
                         puts("not yet implemented");
                         break;
                   case PEER_PASS:
+                        #ifdef DEBUG
+                        fputs("PEER_PASS read about to begin...", stdout);
+                        #endif
+                        /*pthread_mutex_lock(&rma->pl->sock_lock);*/
                         read_msg_peer_pass(rma->pl, &recp, name, buf, &new_u_id, rma->index);
+                        /*pthread_mutex_unlock(&rma->pl->sock_lock);*/
+                        #ifdef DEBUG
+                        puts("done");
+                        #endif
                         _Bool has_route;
                         struct glob_peer_list_entry* route = glob_peer_route(rma->pl, recp, rma->index, &has_route);
                         if(route && has_route)continue;
@@ -299,6 +367,7 @@ void read_messages_pth(struct read_msg_arg* rma){
                         pthread_mutex_unlock(&rma->pl->pl_lock);
                         break;
                   case MSG_BLAST:
+                        puts("not yet implemented");
                         break;
                   case PEER_EXIT:
                         printf("user %s has disconnected\n", rma->pl->l_a[rma->index].clnt_info[0]);
@@ -314,6 +383,9 @@ void read_messages_pth(struct read_msg_arg* rma){
                               printf("route to global peer %s has been lost\n", lost_route[i]);
                         return;
             }
+            memset(buf, 0, msg_sz);
+            memset(name, 0, 30);
+            pre_msg_no = cur_msg_no;
             continue;
             if(msg_type == MSG_PASS || msg_type == PEER_PASS || msg_type == MSG_BLAST || msg_type == PEER_EXIT){
                   read(rma->pl->l_a[rma->index].clnt_num, &recp, 4);
@@ -474,7 +546,7 @@ int main(int argc, char** argv){
                   puts("succesfully established a connection");
                   // reading our newly assigned user id
                   #ifdef DEBUG
-                  puts("waiting for my u_id assignment...");
+                  fputs("waiting for my u_id assignment...", stdout);
                   #endif
                   read(s, &pl->u_id, 4);
                   #ifdef DEBUG
@@ -483,14 +555,14 @@ int main(int argc, char** argv){
                   send(s, pl->name, 30, 0L);
                   char p_name[30] = {0};
                   #ifdef DEBUG
-                  puts("waiting for new peer's preferred name...");
+                  fputs("waiting for new peer's preferred name...", stdout);
                   #endif
                   read(s, p_name, 30);
                   #ifdef DEBUG
                   puts("got it!");
                   #endif
                   #ifdef DEBUG
-                  puts("waiting for new peer's u_id...");
+                  fputs("waiting for new peer's u_id...", stdout);
                   #endif
                   read(s, &p_u_id, 4);
                   #ifdef DEBUG
@@ -521,7 +593,9 @@ int main(int argc, char** argv){
       ssize_t read;
       char* ln = NULL;
       pthread_t acc_th;
+      /*pthread_mutex_lock(&pl->sock_lock);*/
       pthread_create(&acc_th, NULL, (void*)&accept_connections, pl);
+      /*pthread_mutex_unlock(&pl->sock_lock);*/
       #ifdef DEBUG
       puts("accept thread created");
       #endif

@@ -37,14 +37,14 @@ struct read_thread{
 };
 
 struct peer_list{
-      pthread_mutex_t pl_lock;
+      pthread_mutex_t pl_lock, sock_lock;
       struct glob_peer_list* gpl;
       struct loc_addr_clnt_num* l_a;
       // u_id is unique on network
       int sz, cap, local_sock, u_id;
       char* local_mac;
       char* name;
-      _Bool continuous;
+      _Bool continuous, read_th_wait;
       struct read_thread* rt;
       void* read_func;
 };
