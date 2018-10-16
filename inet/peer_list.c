@@ -113,6 +113,7 @@ void rt_init(struct read_thread* rt){
 }
 
 void pl_add(struct peer_list* pl, struct sockaddr_in la, int clnt_num, char* name, int u_id){
+      if(has_peer(pl, NULL, u_id, NULL))return;
       next_uid = u_id+1;
       pthread_mutex_lock(&pl->pl_lock);
       if(pl->sz == pl->cap){
@@ -131,11 +132,7 @@ void pl_add(struct peer_list* pl, struct sockaddr_in la, int clnt_num, char* nam
       else pl->l_a[pl->sz].clnt_info[0] = name;
       pl->l_a[pl->sz].u_id = u_id;
       pl->l_a[pl->sz].continuous = 1;
-      // made obsolete by in_glob_route
-      /*pl->l_a[pl->sz].in_route = 0;*/
       pl->l_a[pl->sz++].clnt_num = clnt_num;
-      // TODO:
-      /*create a new thread to read and keep it in pl->r_th*/
       #ifdef DEBUG
       printf("pl_add: new peer with name: %s has been added\n", pl->l_a[pl->sz-1].clnt_info[0]);
       #endif
@@ -158,9 +155,7 @@ void pl_add(struct peer_list* pl, struct sockaddr_in la, int clnt_num, char* nam
 int pl_remove(struct peer_list* pl, int peer_ind, char** gpl_i){
       pthread_mutex_lock(&pl->pl_lock);
       pl->l_a[peer_ind].continuous = 0;
-      // this is seg faulting
       free(pl->l_a[peer_ind].clnt_info[0]);
-      /*free(pl->l_a[peer_ind].clnt_info[1]);*/
       int gpl_s = 0;
       memmove(pl->l_a+peer_ind, pl->l_a+peer_ind+1, pl->sz-peer_ind-1);
       // adjusting gpl routes
@@ -194,7 +189,6 @@ int pl_remove(struct peer_list* pl, int peer_ind, char** gpl_i){
 void pl_free(struct peer_list* pl){
       pl->continuous = 0;
       free(pl->name);
-      /*free(pl->local_mac);*/
       for(; pl->sz; pl_remove(pl, 0, NULL));
       pthread_mutex_destroy(&pl->pl_lock);
       gpl_free(pl->gpl);
@@ -254,9 +248,9 @@ struct glob_peer_list_entry* glob_peer_route(struct peer_list* pl, int u_id, int
 /*returns 3 if peer is me, 1 if local peer, 2 if global, 0 else*/
 // TODO: this should not rely on name - nicks are not unique
 int has_peer(struct peer_list* pl, char* name, int u_id, int* u_id_set){
-      if(strstr(pl->name, name))return 3;
+      if(name && strstr(pl->name, name))return 3;
       for(int i = 0; i < pl->sz; ++i)
-            if(strstr(pl->l_a[i].clnt_info[0], name)){
+            if(pl->l_a[i].u_id == u_id || (name && strstr(pl->l_a[i].clnt_info[0], name))){
                   if(u_id_set)*u_id_set = pl->l_a[i].u_id;
                   return 1;
             }
