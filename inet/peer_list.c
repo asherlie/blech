@@ -156,6 +156,7 @@ int pl_remove(struct peer_list* pl, int peer_ind, char** gpl_i){
       pthread_mutex_lock(&pl->pl_lock);
       pl->l_a[peer_ind].continuous = 0;
       free(pl->l_a[peer_ind].clnt_info[0]);
+      puts("freed clnt inf");
       int gpl_s = 0;
       memmove(pl->l_a+peer_ind, pl->l_a+peer_ind+1, pl->sz-peer_ind-1);
       // adjusting gpl routes
