@@ -1,4 +1,8 @@
 #include "peer_list.h"
+#include "snd.h"
+#include "net.h"
+
+#define PORTNUM 2010
 
 int next_uid = 0;
 
@@ -58,7 +62,7 @@ _Bool gple_remove_route_entry(struct glob_peer_list_entry* gple, int rel_no){
       return 0;
 }
 
-pthread_t add_read_thread(struct peer_list* pl, void *(*read_th_fnc) (void *)){
+pthread_t add_read_thread(struct peer_list* pl){
       if(pl->rt->sz == pl->rt->cap){
             pl->rt->cap *= 2;
             pthread_t* tmp_rt = malloc(sizeof(pthread_t)*pl->rt->cap);
@@ -70,7 +74,7 @@ pthread_t add_read_thread(struct peer_list* pl, void *(*read_th_fnc) (void *)){
       rma->index = pl->rt->sz;
       rma->pl = pl;
       pthread_t ptt;
-      pthread_create(&ptt, NULL, read_th_fnc, rma);
+      pthread_create(&ptt, NULL, (void*)&read_messages_pth, rma);
       pthread_detach(ptt);
       pl->rt->th[pl->rt->sz++] = ptt;
       return ptt;
@@ -146,7 +150,7 @@ void pl_add(struct peer_list* pl, struct sockaddr_in la, int clnt_num, char* nam
       #ifdef DEBUG
       puts("info gathered!");
       #endif
-      add_read_thread(pl, pl->read_func);
+      add_read_thread(pl);
 }
 
 // if(gpl_i)*gpl_i is set to indices of global peers with broken routes
@@ -156,7 +160,6 @@ int pl_remove(struct peer_list* pl, int peer_ind, char** gpl_i){
       pthread_mutex_lock(&pl->pl_lock);
       pl->l_a[peer_ind].continuous = 0;
       free(pl->l_a[peer_ind].clnt_info[0]);
-      puts("freed clnt inf");
       int gpl_s = 0;
       memmove(pl->l_a+peer_ind, pl->l_a+peer_ind+1, pl->sz-peer_ind-1);
       // adjusting gpl routes
@@ -261,4 +264,69 @@ int has_peer(struct peer_list* pl, char* name, int u_id, int* u_id_set){
 
 int assign_uid(){
       return next_uid++;
+}
+
+// TODO: free peer list memory
+void safe_exit(struct peer_list* pl){
+      pl->continuous = 0;
+      pthread_mutex_lock(&pl->pl_lock);
+      init_prop_msg(pl, 0, PEER_EXIT, NULL, 0, pl->u_id);
+      pthread_mutex_unlock(&pl->pl_lock);
+}
+
+_Bool blech_init(struct peer_list* pl, char* sterm){
+      pl_init(pl, PORTNUM);
+      pl->continuous = 1;
+      int bound = 1;
+      if(sterm){
+            printf("looking for peer matching search string: \"%s\"\n", sterm);
+            // sterm is ip
+            int s, p_u_id;
+            bound = net_connect(sterm, &s, PORTNUM);
+            if(bound == 0){
+                  puts("succesfully established a connection");
+                  // reading our newly assigned user id
+                  read(s, &pl->u_id, 4);
+                  send(s, pl->name, 30, 0L);
+                  char p_name[30] = {0};
+                  read(s, p_name, 30);
+                  read(s, &p_u_id, 4);
+                  // printing after we've read preferred name info to assure it's blech network we've connected to
+                  printf("you have joined %s~the network~%s\n", ANSI_RED, ANSI_NON);
+                  struct sockaddr_in la;
+                  bzero(&la, sizeof(struct sockaddr_in));
+                  // uhh this chunk doesn't make sense
+                  /*mac = inet_ntoa(la.sin_addr);*/
+                  pl_add(pl, la, s, strdup(p_name), p_u_id);
+                  #ifdef DEBUG
+                  printf("added user with name: %s and global peer num: %i\n", pl->l_a[pl->sz-1].clnt_info[0], p_u_id);
+                  #endif
+            }
+            else puts("failed to establish a connection");
+      }
+      if(bound == 1){
+            // only in this instance will we self assign a u_id
+            pl->u_id = assign_uid();
+            #ifdef DEBUG
+            printf("self assigned my u_id %i\n", pl->u_id);
+            #endif
+            puts("starting in accept-only mode");
+      }
+      pthread_t acc_th;
+      /*pthread_mutex_lock(&pl->sock_lock);*/
+      pthread_create(&acc_th, NULL, (void*)&accept_connections, pl);
+      /*pthread_mutex_unlock(&pl->sock_lock);*/
+      #ifdef DEBUG
+      puts("accept thread created");
+      #endif
+      return !bound;
+}
+
+struct loc_addr_clnt_num* find_peer(struct peer_list* pl, int u_id){
+      struct loc_addr_clnt_num* ret = NULL;
+      pthread_mutex_lock(&pl->pl_lock);
+      for(int i = 0; i < pl->sz; ++i)
+            if(pl->l_a[i].u_id == u_id)ret = &pl->l_a[i];
+      pthread_mutex_unlock(&pl->pl_lock);
+      return ret;
 }

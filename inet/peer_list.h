@@ -1,3 +1,6 @@
+#ifndef _PL_H
+#define _PL_H
+
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
@@ -9,13 +12,19 @@
 #include <string.h>
 #include <pthread.h>
 
-#include "blech.h"
-
 #define ANSI_RED   "\x1B[31m"
 #define ANSI_NON   "\x1b[0m"
 #define ANSI_GRE   "\x1b[32m"
 #define ANSI_BLU   "\x1b[34m"
 #define ANSI_MGNTA "\x1b[35m"
+
+struct loc_addr_clnt_num{
+      struct sockaddr_in l_a; 
+      int clnt_num, u_id;
+      // [client name, mac]
+      char** clnt_info;
+      _Bool continuous;
+};
 
 struct glob_peer_list_entry{
       int u_id;
@@ -46,7 +55,6 @@ struct peer_list{
       char* name;
       _Bool continuous, read_th_wait;
       struct read_thread* rt;
-      void* read_func;
 };
 
 struct read_msg_arg{
@@ -70,5 +78,9 @@ int has_peer(struct peer_list* pl, char* name, int u_id, int* u_id_set);
 struct glob_peer_list_entry* glob_peer_route(struct peer_list* pl, int u_id, int el, _Bool* cont);
 _Bool in_glob_route(struct peer_list* pl, int pl_ind);
 void rt_init(struct read_thread* rt);
-pthread_t add_read_thread(struct peer_list* pl, void *(*read_th_fnc) (void *));
+pthread_t add_read_thread(struct peer_list* pl);
 int assign_uid();
+void safe_exit(struct peer_list* pl);
+_Bool blech_init(struct peer_list* pl, char* sterm);
+struct loc_addr_clnt_num* find_peer(struct peer_list* pl, int u_id);
+#endif
