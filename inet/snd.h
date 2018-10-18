@@ -12,7 +12,7 @@
 _Bool abs_snd_msg(struct loc_addr_clnt_num* la, int n, int msg_type, int sender_sz, int msg_sz, int recp, char* sender, char* msg, int u_msg_no, int adtnl_int);
 _Bool init_prop_msg(struct peer_list* pl, _Bool skip_lst, int msg_type, char* msg, int msg_sz, int op_int);
 int snd_txt_to_peers(struct peer_list* pl, char* msg, int msg_sz);
-//_Bool snd_pm(struct peer_list* pl, char* msg, int recp);
+_Bool snd_pm(struct peer_list* pl, char* msg, int msg_sz, int recp);
 _Bool prop_msg(struct loc_addr_clnt_num* la, int peer_no, struct peer_list* pl, 
                int msg_type, int msg_sz, char* buf, int recp, char* sndr, int adtnl_int);
 _Bool read_messages(int s, int* recp, char** name, char** msg, int* adtnl_int, int msg_sz_cap);

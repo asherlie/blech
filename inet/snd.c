@@ -50,6 +50,18 @@ int snd_txt_to_peers(struct peer_list* pl, char* msg, int msg_sz){
       return ret;
 }
 
+// recp is a u_id
+_Bool snd_pm(struct peer_list* pl, char* msg, int msg_sz, int recp){
+      /*returns 3 if peer is me, 1 if local peer, 2 if global, 0 else*/
+      int loc_addr = -1;
+      int peer_type = has_peer(pl, NULL, recp, NULL, &loc_addr);
+      if(peer_type == 1)
+            abs_snd_msg(&pl->l_a[loc_addr], 1, MSG_SND, 30, msg_sz, recp, pl->name, msg, msg_no++, -1);
+      else if(peer_type == 2)
+            init_prop_msg(pl, 0, MSG_PASS, msg, msg_sz, -1);
+      return peer_type;
+}
+
 // name of sender
 // peer_no refers to the rma->index of the caller/peer number of the sender
 _Bool prop_msg(struct loc_addr_clnt_num* la, int peer_no, struct peer_list* pl, 
@@ -131,7 +143,7 @@ void read_messages_pth(struct read_msg_arg* rma){
             switch(msg_type){
                   case MSG_SND:
                         read_msg_msg_snd(rma->pl, &recp, name, buf, rma->index);
-                        printf("%s%s%s: %s\n", (has_peer(rma->pl, name, -1, NULL) == 1) ? ANSI_BLU : ANSI_GRE, name, ANSI_NON, buf);
+                        printf("%s%s%s: %s\n", (has_peer(rma->pl, name, -1, NULL, NULL) == 1) ? ANSI_BLU : ANSI_GRE, name, ANSI_NON, buf);
                         break;
                   case MSG_PASS:
                         read_msg_msg_pass(rma->pl, &recp, name, buf, rma->index);
@@ -159,7 +171,7 @@ void read_messages_pth(struct read_msg_arg* rma){
                         break;
                   case MSG_BLAST:
                         read_msg_msg_blast(rma->pl, &recp, name, buf, rma->index);
-                        printf("%s%s%s: %s\n", (has_peer(rma->pl, name, -1, NULL) == 1) ? ANSI_BLU : ANSI_GRE, name, ANSI_NON, buf);
+                        printf("%s%s%s: %s\n", (has_peer(rma->pl, name, -1, NULL, NULL) == 1) ? ANSI_BLU : ANSI_GRE, name, ANSI_NON, buf);
                         break;
                   case PEER_EXIT:
                         read_msg_peer_exit(rma->pl, &recp, name, &peer_ind, rma->index);
@@ -169,7 +181,7 @@ void read_messages_pth(struct read_msg_arg* rma){
                         #ifdef DEBUG
                         puts("attempting to remove peer list entry");
                         #endif
-                        int ploc = has_peer(rma->pl, NULL, peer_ind, NULL);
+                        int ploc = has_peer(rma->pl, NULL, peer_ind, NULL, NULL);
                         /*returns 3 if peer is me, 1 if local peer, 2 if global, 0 else*/
                         // global peers need to be sent peer exits and everyone receiving one must check if any routes are lost
                         int lost = 0;
@@ -189,4 +201,3 @@ void read_messages_pth(struct read_msg_arg* rma){
             pre_msg_no = cur_msg_no;
       }
 }
-

@@ -117,7 +117,7 @@ void rt_init(struct read_thread* rt){
 }
 
 void pl_add(struct peer_list* pl, struct sockaddr_in la, int clnt_num, char* name, int u_id){
-      if(has_peer(pl, NULL, u_id, NULL))return;
+      if(has_peer(pl, NULL, u_id, NULL, NULL))return;
       next_uid = u_id+1;
       pthread_mutex_lock(&pl->pl_lock);
       if(pl->sz == pl->cap){
@@ -250,12 +250,14 @@ struct glob_peer_list_entry* glob_peer_route(struct peer_list* pl, int u_id, int
 }
 
 /*returns 3 if peer is me, 1 if local peer, 2 if global, 0 else*/
+/*if loc_num, *loc_num is set to local peer number of u_id*/
 // TODO: this should not rely on name - nicks are not unique
-int has_peer(struct peer_list* pl, char* name, int u_id, int* u_id_set){
+int has_peer(struct peer_list* pl, char* name, int u_id, int* u_id_set, int* loc_num){
       if(name && strstr(pl->name, name))return 3;
       for(int i = 0; i < pl->sz; ++i)
             if(pl->l_a[i].u_id == u_id || (name && strstr(pl->l_a[i].clnt_info[0], name))){
                   if(u_id_set)*u_id_set = pl->l_a[i].u_id;
+                  if(loc_num)*loc_num = i;
                   return 1;
             }
       if(glob_peer_route(pl, u_id, -1, NULL))return 2;

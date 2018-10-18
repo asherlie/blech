@@ -1,7 +1,6 @@
 #include <string.h>
 #include "peer_list.h"
 #include "snd.h"
-#include "net.h"
 
 extern int msg_no;
 
