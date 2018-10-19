@@ -222,7 +222,8 @@ _Bool in_glob_route(struct peer_list* pl, int pl_ind){
 }
 
 void pl_print(struct peer_list* pl){
-      printf("printing %i local peers and %i global peers\n", pl->sz, pl->gpl->sz);
+      /*printf("printing %i local peers and %i global peers\n", pl->sz, pl->gpl->sz);*/
+      printf("[%sme%s]: %s@%i\n", ANSI_RED, ANSI_NON, pl->name, pl->u_id);
       for(int i = 0; i < pl->sz; ++i){
             printf("[%slcl%s]%i: %s@%i\n", ANSI_BLU, ANSI_NON, i, pl->l_a[i].clnt_info[0], pl->l_a[i].u_id);
       }
