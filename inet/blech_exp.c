@@ -42,17 +42,13 @@ int main(int argc, char** argv){
                         puts("enter a peer # to send a private message");
                         continue;
                   }
-                  int msg_code;
-                  struct loc_addr_clnt_num* la;
                   int recp = -1;
                   pthread_mutex_lock(&pl->pl_lock);
-                  if(i < pl->sz){
-                        msg_code = MSG_SND;
-                        la = &pl->l_a[i];
-                  }
+                  if(i < pl->sz)
+                        recp = pl->l_a[i].u_id;
+                        /*la = &pl->l_a[i];*/
                   else if(i < pl->gpl->sz+pl->sz){
-                        msg_code = MSG_PASS;
-                        la = &pl->l_a[*pl->gpl->gpl[i-pl->sz].dir_p];
+                        /*la = &pl->l_a[*pl->gpl->gpl[i-pl->sz].dir_p];*/
                         recp = pl->gpl->gpl[i-pl->sz].u_id;
                   }
                   else{
@@ -63,7 +59,8 @@ int main(int argc, char** argv){
                   pthread_mutex_unlock(&pl->pl_lock);
                   read = getline(&ln, &sz, stdin);
                   ln[--read] = '\0';
-                  abs_snd_msg(la, 1, msg_code, 30, read, recp, pl->name, ln, msg_no++, -1);
+                  /*abs_snd_msg(la, 1, msg_code, 30, read, recp, pl->name, ln, msg_no++, -1);*/
+                  snd_pm(pl, ln, read, recp);
             }
             else snd_txt_to_peers(pl, ln, read);
             printf("%sme%s: \"%s\"\n", ANSI_MGNTA, ANSI_NON, ln);

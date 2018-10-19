@@ -58,19 +58,21 @@ _Bool snd_pm(struct peer_list* pl, char* msg, int msg_sz, int recp){
       if(peer_type == 1)
             abs_snd_msg(&pl->l_a[loc_addr], 1, MSG_SND, 30, msg_sz, recp, pl->name, msg, msg_no++, -1);
       else if(peer_type == 2)
-            init_prop_msg(pl, 0, MSG_PASS, msg, msg_sz, -1);
+            abs_snd_msg(&pl->l_a[loc_addr], 1, MSG_PASS, 30, msg_sz, recp, pl->name, msg, msg_no++, -1);
+            /*init_prop_msg(pl, 0, MSG_PASS, msg, msg_sz, -1);*/
       return peer_type;
 }
 
 // name of sender
 // peer_no refers to the rma->index of the caller/peer number of the sender
-_Bool prop_msg(struct loc_addr_clnt_num* la, int peer_no, struct peer_list* pl, 
-               int msg_type, int msg_sz, char* buf, int recp, char* sndr, int adtnl_int){
+// alt_msg_type is substituted, if it exists, when a recp is a local peer
+_Bool prop_msg(struct loc_addr_clnt_num* la, int peer_no, struct peer_list* pl, int msg_type,
+               int alt_msg_type, int msg_sz, char* buf, int recp, char* sndr, int adtnl_int){
       /*if(cur_msg_no == pre_msg_no || (msg_type == PEER_PASS && new_u_id == rma->pl->u_id))continue;*/
       // la_r implies MSG_PASS or PEER_PASS
       struct glob_peer_list_entry* route = NULL;
       if(la){
-            abs_snd_msg(la, 1, msg_type, 30, msg_sz, la->u_id, sndr, buf, msg_no++, adtnl_int);
+            abs_snd_msg(la, 1, (alt_msg_type >= 0) ? alt_msg_type : msg_type, 30, msg_sz, la->u_id, sndr, buf, msg_no++, adtnl_int);
       }
       else if((route = glob_peer_route(pl, recp, peer_no, NULL))){
             abs_snd_msg(&pl->l_a[route->dir_p[0]], 1, msg_type, 30, msg_sz, recp, sndr, buf, msg_no++, adtnl_int);
@@ -92,27 +94,27 @@ _Bool read_messages(int s, int* recp, char** name, char** msg, int* adtnl_int, i
 _Bool read_msg_msg_pass(struct peer_list* pl, int* recp, char* sndr_name, char* msg, int peer_no){
       read_messages(pl->l_a[peer_no].clnt_num, recp, &sndr_name, &msg, NULL, 0);
       struct loc_addr_clnt_num* la_r = find_peer(pl, *recp);
-      return prop_msg(la_r, peer_no, pl, MSG_PASS, 1024, msg, *recp, sndr_name, -1);
+      return prop_msg(la_r, peer_no, pl, MSG_PASS, MSG_SND, 1024, msg, *recp, sndr_name, -1);
 }
 
 // PEER_EXIT uses optional int field to send sndr info rather than sndr_name - nvm
 _Bool read_msg_peer_exit(struct peer_list* pl, int* recp, char* sndr_name, int* sndr_u_id, int peer_no){
       read_messages(pl->l_a[peer_no].clnt_num, recp, &sndr_name, NULL, sndr_u_id, peer_no);
       struct loc_addr_clnt_num* la_r = find_peer(pl, *recp);
-      return prop_msg(la_r, peer_no, pl, PEER_EXIT, 0, NULL, *recp, sndr_name, -1);
+      return prop_msg(la_r, peer_no, pl, PEER_EXIT, -1, 0, NULL, *recp, sndr_name, -1);
 }
 
 _Bool read_msg_msg_blast(struct peer_list* pl, int* recp, char* sndr_name, char* msg, int peer_no){
       read_messages(pl->l_a[peer_no].clnt_num, recp, &sndr_name, &msg, NULL, 0);
       struct loc_addr_clnt_num* la_r = find_peer(pl, *recp);
-      return prop_msg(la_r, peer_no, pl, MSG_BLAST, 1024, msg, *recp, sndr_name, -1);
+      return prop_msg(la_r, peer_no, pl, MSG_BLAST, -1, 1024, msg, *recp, sndr_name, -1);
 }
 
 // peer pass uses all fields
 _Bool read_msg_peer_pass(struct peer_list* pl, int* recp, char* sndr_name, char* msg, int* new_u_id, int peer_no){
       read_messages(pl->l_a[peer_no].clnt_num, recp, &sndr_name, &msg, new_u_id, 30);
       struct loc_addr_clnt_num* la_r = find_peer(pl, *recp);
-      return prop_msg(la_r, peer_no, pl, PEER_PASS, 30, msg, *recp, sndr_name, *new_u_id);
+      return prop_msg(la_r, peer_no, pl, PEER_PASS, -1, 30, msg, *recp, sndr_name, *new_u_id);
 }
 
 _Bool read_msg_msg_snd(struct peer_list* pl, int* recp, char* sndr_name, char* msg, int peer_no){
