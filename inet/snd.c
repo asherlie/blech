@@ -54,7 +54,7 @@ int snd_txt_to_peers(struct peer_list* pl, char* msg, int msg_sz){
 _Bool snd_pm(struct peer_list* pl, char* msg, int msg_sz, int recp){
       /*returns 3 if peer is me, 1 if local peer, 2 if global, 0 else*/
       int loc_addr = -1;
-      int peer_type = has_peer(pl, NULL, recp, NULL, &loc_addr);
+      int peer_type = has_peer(pl, NULL, recp, NULL, &loc_addr, NULL);
       if(peer_type == 1)
             abs_snd_msg(&pl->l_a[loc_addr], 1, MSG_SND, 30, msg_sz, recp, pl->name, msg, msg_no++, -1);
       else if(peer_type == 2)
@@ -74,7 +74,7 @@ _Bool prop_msg(struct loc_addr_clnt_num* la, int peer_no, struct peer_list* pl, 
       if(la){
             abs_snd_msg(la, 1, (alt_msg_type >= 0) ? alt_msg_type : msg_type, 30, msg_sz, la->u_id, sndr, buf, msg_no++, adtnl_int);
       }
-      else if((route = glob_peer_route(pl, recp, peer_no, NULL))){
+      else if((route = glob_peer_route(pl, recp, peer_no, NULL, NULL))){
             abs_snd_msg(&pl->l_a[route->dir_p[0]], 1, msg_type, 30, msg_sz, recp, sndr, buf, msg_no++, adtnl_int);
       }
       return 1;
@@ -145,7 +145,7 @@ void read_messages_pth(struct read_msg_arg* rma){
             switch(msg_type){
                   case MSG_SND:
                         read_msg_msg_snd(rma->pl, &recp, name, buf, rma->index);
-                        printf("%s%s%s: %s\n", (has_peer(rma->pl, name, -1, NULL, NULL) == 1) ? ANSI_BLU : ANSI_GRE, name, ANSI_NON, buf);
+                        printf("%s%s%s: %s\n", (has_peer(rma->pl, name, -1, NULL, NULL, NULL) == 1) ? ANSI_BLU : ANSI_GRE, name, ANSI_NON, buf);
                         break;
                   case MSG_PASS:
                         read_msg_msg_pass(rma->pl, &recp, name, buf, rma->index);
@@ -155,7 +155,7 @@ void read_messages_pth(struct read_msg_arg* rma){
                         read_msg_peer_pass(rma->pl, &recp, name, buf, &new_u_id, rma->index);
                         /*pthread_mutex_unlock(&rma->pl->sock_lock);*/
                         _Bool has_route;
-                        struct glob_peer_list_entry* route = glob_peer_route(rma->pl, recp, rma->index, &has_route);
+                        struct glob_peer_list_entry* route = glob_peer_route(rma->pl, recp, rma->index, &has_route, NULL);
                         if(route && has_route)continue;
                         #ifdef DEBUG
                         if(!route)puts("new user found");
@@ -173,29 +173,34 @@ void read_messages_pth(struct read_msg_arg* rma){
                         break;
                   case MSG_BLAST:
                         read_msg_msg_blast(rma->pl, &recp, name, buf, rma->index);
-                        printf("%s%s%s: %s\n", (has_peer(rma->pl, name, -1, NULL, NULL) == 1) ? ANSI_BLU : ANSI_GRE, name, ANSI_NON, buf);
+                        printf("%s%s%s: %s\n", (has_peer(rma->pl, name, -1, NULL, NULL, NULL) == 1) ? ANSI_BLU : ANSI_GRE, name, ANSI_NON, buf);
                         break;
                   case PEER_EXIT:
                         read_msg_peer_exit(rma->pl, &recp, name, &peer_ind, rma->index);
+                        // peer_ind = u_id
                         /*printf("user %s has disconnected\n", rma->pl->l_a[rma->index].clnt_info[0]);*/
                         printf("user %s has disconnected\n", name);
+                        /*printf("route to peer %s has been lost\n", name);*/
                         char* lost_route[rma->pl->gpl->sz];
                         #ifdef DEBUG
                         puts("attempting to remove peer list entry");
                         #endif
-                        int ploc = has_peer(rma->pl, NULL, peer_ind, NULL, NULL);
+                        int gpl_i = -1;
+                        int ploc = has_peer(rma->pl, NULL, peer_ind, NULL, NULL, &gpl_i);
                         /*returns 3 if peer is me, 1 if local peer, 2 if global, 0 else*/
                         // global peers need to be sent peer exits and everyone receiving one must check if any routes are lost
                         int lost = 0;
-                        // TODO: handle global peer disconnection
                         // TODO: rma->index should not be removed if not local
                         // TODO: is it a safe assumption that if we're removing a global peer it's rma->index?
+                        // TODO: handle loss of route from global peer disconnection
                         if(ploc == 1)lost = pl_remove(rma->pl, rma->index, lost_route);
+                        else if(ploc == 2)gpl_remove(rma->pl->gpl, gpl_i, 1);
                         #ifdef DEBUG
                         puts("SUCCESS");
                         #endif
                         for(int i = 0; i < lost; ++i)
                               printf("route to global peer %s has been lost\n", lost_route[i]);
+                              /*printf("route to peer %s has been lost\n", lost_route[i]);*/
                         return;
             }
             memset(buf, 0, sizeof(buf));
