@@ -303,10 +303,9 @@ _Bool blech_init(struct peer_list* pl, char* sterm){
                   read(s, &p_u_id, 4);
                   // printing after we've read preferred name info to assure it's blech network we've connected to
                   printf("you have joined %s~the network~%s\n", ANSI_RED, ANSI_NON);
+                  // TODO: pl_add should take in a sockaddr_in* so i can pass NULL if needed
                   struct sockaddr_in la;
                   bzero(&la, sizeof(struct sockaddr_in));
-                  // uhh this chunk doesn't make sense
-                  /*mac = inet_ntoa(la.sin_addr);*/
                   pl_add(pl, la, s, strdup(p_name), p_u_id);
                   #ifdef DEBUG
                   printf("added user with name: %s and global peer num: %i\n", pl->l_a[pl->sz-1].clnt_info[0], p_u_id);

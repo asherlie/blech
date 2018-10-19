@@ -59,7 +59,6 @@ int main(int argc, char** argv){
                   pthread_mutex_unlock(&pl->pl_lock);
                   read = getline(&ln, &sz, stdin);
                   ln[--read] = '\0';
-                  /*abs_snd_msg(la, 1, msg_code, 30, read, recp, pl->name, ln, msg_no++, -1);*/
                   snd_pm(pl, ln, read, recp);
             }
             else snd_txt_to_peers(pl, ln, read);
