@@ -101,7 +101,7 @@ _Bool read_msg_msg_pass(struct peer_list* pl, int* recp, char* sndr_name, char* 
 _Bool read_msg_peer_exit(struct peer_list* pl, int* recp, char* sndr_name, int* sndr_u_id, int peer_no){
       read_messages(pl->l_a[peer_no].clnt_num, recp, &sndr_name, NULL, sndr_u_id, peer_no);
       struct loc_addr_clnt_num* la_r = find_peer(pl, *recp);
-      return prop_msg(la_r, peer_no, pl, PEER_EXIT, -1, 0, NULL, *recp, sndr_name, -1);
+      return prop_msg(la_r, peer_no, pl, PEER_EXIT, -1, 0, NULL, *recp, sndr_name, *sndr_u_id);
 }
 
 _Bool read_msg_msg_blast(struct peer_list* pl, int* recp, char* sndr_name, char* msg, int peer_no){
