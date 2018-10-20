@@ -80,7 +80,31 @@ pthread_t add_read_thread(struct peer_list* pl){
       return ptt;
 }
 
+void fs_init(struct filesys* fs){
+      if(!fs)fs = malloc(sizeof(struct filesys));
+      fs->n_files = 0;
+      fs->cap = 1;
+      fs->files = malloc(sizeof(struct file_acc)*fs->cap);
+}
+
+_Bool fs_add(struct filesys* fs, char* fname, int* u_id_lst){
+      _Bool ret = 0;
+      if(fs->n_files == fs->cap){
+            fs->cap *= 2;
+            struct file_acc* tmp = malloc(sizeof(struct file_acc)*fs->cap);
+            memcpy(tmp, fs->files, sizeof(struct file_acc)*fs->n_files);
+            free(fs->files);
+            fs->files = tmp;
+            ret = 1;
+      }
+      fs->files[fs->n_files].fname = fname;
+      fs->files[fs->n_files++].f_list = u_id_lst;
+      /*fs->files*/
+      return ret;
+}
+
 void pl_init(struct peer_list* pl, uint16_t port_num){
+      fs_init(&pl->file_system);
       pl->gpl = malloc(sizeof(struct glob_peer_list));
       gpl_init(pl->gpl);
       pl->rt = malloc(sizeof(struct read_thread));

@@ -1,4 +1,3 @@
-#include <sys/sendfile.h>
 #include "snd.h"
 
 extern int msg_no;
@@ -156,6 +155,7 @@ void read_messages_pth(struct read_msg_arg* rma){
                         /*int chunk_sz = -1;*/
                         // buf stores file name, new_u_id stores chunk size - for some reason
                         // returns char* of file chunk
+                        // TODO: file name shouldn't be sent to me! i'm just a middleman
                         read_msg_file_chunk(rma->pl, &recp, buf, &new_u_id, rma->index);
                         break;
                   case MSG_SND:

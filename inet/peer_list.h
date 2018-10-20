@@ -45,6 +45,22 @@ struct read_thread{
       pthread_t* th;
 };
 
+// 
+struct filestor{
+};
+
+struct file_acc{
+      // contains a list of u_id's
+      char* fname;
+      int* f_list;
+};
+
+struct filesys{
+      struct filestor storage;
+      int n_files, cap;
+      struct file_acc* files;
+};
+
 struct peer_list{
       pthread_mutex_t pl_lock, sock_lock;
       struct glob_peer_list* gpl;
@@ -55,6 +71,7 @@ struct peer_list{
       char* name;
       _Bool continuous, read_th_wait;
       struct read_thread* rt;
+      struct filesys file_system;
 };
 
 struct read_msg_arg{
@@ -62,6 +79,8 @@ struct read_msg_arg{
       int index;
 };
 
+_Bool fs_add(struct filesys* fs, char* fname, int* u_id_lst);
+void fs_init(struct filesys* fs);
 void gpl_init(struct glob_peer_list* gpl);
 void pl_init(struct peer_list* pl, uint16_t port_num);
 void pl_add(struct peer_list* pl, struct sockaddr_in la, int clnt_num, char* name, int u_id);
