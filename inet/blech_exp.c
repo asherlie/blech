@@ -36,7 +36,11 @@ int main(int argc, char** argv){
                   pl_print(pl);
                   continue;
             }
-            if(read > 2 && *ln == 'p' && ln[1] == 'm'){
+            if(read > 2 && *ln == 'u' && ln[1] == ' '){
+                  upload_file(pl, ln+2);
+                  /*_Bool upload_file(struct peer_list* pl, char* fname){*/
+            }
+            else if(read > 2 && *ln == 'p' && ln[1] == 'm'){
                   int i = -1;
                   if(!strtoi(ln+3, NULL, &i)){
                         puts("enter a peer # to send a private message");

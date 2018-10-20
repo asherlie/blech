@@ -1,5 +1,5 @@
+#include <sys/sendfile.h>
 #include "snd.h"
-/*#include "net.h"*/
 
 extern int msg_no;
 
@@ -89,6 +89,15 @@ _Bool read_messages(int s, int* recp, char** name, char** msg, int* adtnl_int, i
       return 1;
 }
 
+// FILE_CHUNK uses msg field to store filename
+// returns a malloc'd char*
+char* read_msg_file_chunk(struct peer_list* pl, int* recp, char* fname, int* chunk_sz, int peer_no){
+      read_messages(pl->l_a[peer_no].clnt_num, recp, NULL, &fname, chunk_sz, 0);
+      char* buf = calloc(*chunk_sz+1, sizeof(char));
+      read(pl->l_a[peer_no].clnt_num, buf, *chunk_sz);
+      return buf;
+}
+
 // these wrappers handle propogation
 // peer_no refers to the rma->index of the caller/peer number of the sender
 _Bool read_msg_msg_pass(struct peer_list* pl, int* recp, char* sndr_name, char* msg, int peer_no){
@@ -143,6 +152,12 @@ void read_messages_pth(struct read_msg_arg* rma){
             // recp refers to the intended recipient of the message's u_id
             int peer_ind = -1;
             switch(msg_type){
+                  case FILE_CHUNK:
+                        /*int chunk_sz = -1;*/
+                        // buf stores file name, new_u_id stores chunk size - for some reason
+                        // returns char* of file chunk
+                        read_msg_file_chunk(rma->pl, &recp, buf, &new_u_id, rma->index);
+                        break;
                   case MSG_SND:
                         read_msg_msg_snd(rma->pl, &recp, name, buf, rma->index);
                         printf("%s%s%s: %s\n", (has_peer(rma->pl, name, -1, NULL, NULL, NULL) == 1) ? ANSI_BLU : ANSI_GRE, name, ANSI_NON, buf);
@@ -207,4 +222,29 @@ void read_messages_pth(struct read_msg_arg* rma){
             memset(name, 0, 30);
             pre_msg_no = cur_msg_no;
       }
+}
+
+// returns an int[] with the in-order list of peers where fname is stored
+// TODO: have a share file option that inform a peer of this list
+int* upload_file(struct peer_list* pl, char* fname){
+      FILE* fp = fopen(fname, "r");
+      fseek(fp, 0L, SEEK_END);
+      int fsz = ftell(fp);
+      rewind(fp);
+      int n_p = pl->sz + pl->gpl->sz;
+      int n_chunks = n_p/2;
+      int sz_per_chunk = fsz/n_chunks;
+      #ifdef DEBUG
+      printf("file will be uploaded in %i chunks\n", n_chunks);
+      #endif
+      off_t offset = 0;
+      printf("file size: %i, sz_per_chunk: %i\n", fsz, sz_per_chunk);
+      for(int i = 0; i < pl->sz; ++i){
+            // FILE_CHUNK messages contain only recp, msg - msg contains file name, and adtnl_int - containing chunk sz
+            // TODO: sz_per_chunk will be inaccurate on last iteration
+            abs_snd_msg(&pl->l_a[i], 1, FILE_CHUNK, 0, strlen(fname), pl->l_a[i].u_id, NULL, fname, msg_no++, sz_per_chunk);
+            sendfile(pl->l_a[i].clnt_num, fileno(fp), &offset, sz_per_chunk);
+      }
+      fclose(fp);
+      return 1;
 }
