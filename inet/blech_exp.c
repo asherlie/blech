@@ -38,7 +38,7 @@ int main(int argc, char** argv){
             }
             if(read > 2 && *ln == 'u' && ln[1] == ' '){
                   upload_file(pl, ln+2);
-                  /*_Bool upload_file(struct peer_list* pl, char* fname){*/
+                  continue;
             }
             else if(read > 2 && *ln == 'p' && ln[1] == 'm'){
                   int i = -1;

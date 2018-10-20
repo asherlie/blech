@@ -227,24 +227,34 @@ void read_messages_pth(struct read_msg_arg* rma){
 // returns an int[] with the in-order list of peers where fname is stored
 // TODO: have a share file option that inform a peer of this list
 int* upload_file(struct peer_list* pl, char* fname){
+      if(!pl->sz)return NULL;
       FILE* fp = fopen(fname, "r");
       fseek(fp, 0L, SEEK_END);
       int fsz = ftell(fp);
       rewind(fp);
       int n_p = pl->sz + pl->gpl->sz;
-      int n_chunks = n_p/2;
+      // easy system for now
+      // TODO: use a better system to calculate n_chunks
+      int n_chunks = (n_p <= 10) ? n_p : 10;
       int sz_per_chunk = fsz/n_chunks;
       #ifdef DEBUG
       printf("file will be uploaded in %i chunks\n", n_chunks);
       #endif
       off_t offset = 0;
       printf("file size: %i, sz_per_chunk: %i\n", fsz, sz_per_chunk);
+      char* buf = calloc(fsz, sizeof(char));
+      // +1 for last index, -1
+      int* ret = calloc(n_chunks+1, sizeof(int));
+      fread(buf, sizeof(char), fsz, fp);
+      fclose(fp);
       for(int i = 0; i < pl->sz; ++i){
             // FILE_CHUNK messages contain only recp, msg - msg contains file name, and adtnl_int - containing chunk sz
             // TODO: sz_per_chunk will be inaccurate on last iteration
             abs_snd_msg(&pl->l_a[i], 1, FILE_CHUNK, 0, strlen(fname), pl->l_a[i].u_id, NULL, fname, msg_no++, sz_per_chunk);
-            sendfile(pl->l_a[i].clnt_num, fileno(fp), &offset, sz_per_chunk);
+            send(pl->l_a[i].clnt_num, buf+offset, sz_per_chunk, 0L);
+            offset += sz_per_chunk;
+            ret[ret[fsz]++] = pl->l_a[i].u_id;
       }
-      fclose(fp);
-      return 1;
+      ret[fsz] = -1;
+      return ret;
 }
