@@ -85,7 +85,7 @@ _Bool read_messages(int s, int* recp, char** name, char** msg, int* adtnl_int, i
       if(recp)read(s, recp, 4);
       if(name)read(s, *name, 30);
       if(msg)read(s, *msg, (msg_sz_cap) ? msg_sz_cap : 1024);
-      if(adtnl_int)read(s, adtnl_int, 1024);
+      if(adtnl_int)read(s, adtnl_int, 4);
       return 1;
 }
 
