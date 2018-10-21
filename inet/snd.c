@@ -88,6 +88,7 @@ _Bool file_share(struct peer_list* pl, int u_id, int u_fn){
       // fs_add_acc will be called from the above
       /*FILE_SHARE*/
       struct file_acc* loc_file = find_file(&pl->file_system, u_fn);
+      if(!loc_file)return 0;
       int sz = 0;
       for(; loc_file->f_list[sz] != -1; ++sz);
       loc_file->f_list[sz] = u_fn;
@@ -199,6 +200,7 @@ void read_messages_pth(struct read_msg_arg* rma){
             #endif
             // recp refers to the intended recipient of the message's u_id
             int peer_ind = -1;
+            int* f_list = NULL;
             switch(msg_type){
                   case FILE_ALERT:
                         // new u_fn is stored in new_u_id
@@ -208,8 +210,8 @@ void read_messages_pth(struct read_msg_arg* rma){
                   case FILE_SHARE:
                         /*abs_snd_msg();*/
                         // n_ints in file route is stored in new_u_id for some reason
-                        read_msg_file_share(rma->pl, &recp, &u_fn, &new_u_id, rma->index);
-                        if(recp == rma->pl->u_id)fs_add_acc(&rma->pl->file_system, u_fn, "anon_file", NULL);
+                        f_list = read_msg_file_share(rma->pl, &recp, &u_fn, &new_u_id, rma->index);
+                        if(recp == rma->pl->u_id)fs_add_acc(&rma->pl->file_system, u_fn, "anon_file", f_list);
                         break;
                   case FILE_CHUNK:
                         /*int chunk_sz = -1;*/
@@ -323,9 +325,9 @@ int* upload_file(struct peer_list* pl, char* fname){
             send(pl->l_a[i].clnt_num, &u_fn, 4, 0L);
             send(pl->l_a[i].clnt_num, buf+offset, sz_per_chunk, 0L);
             offset += sz_per_chunk;
-            ret[ret[fsz]++] = pl->l_a[i].u_id;
+            ret[ret[n_chunks]++] = pl->l_a[i].u_id;
       }
-      ret[fsz] = -1;
+      ret[n_chunks] = -1;
       // adding our new file to our access list
       fs_add_acc(&pl->file_system, u_fn, fname, ret);
       return ret;
