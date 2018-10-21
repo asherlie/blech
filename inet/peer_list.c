@@ -106,12 +106,11 @@ _Bool fs_add_acc(struct filesys* fs, int u_fn, char* fname, int* u_id_lst){
       fs->files[fs->n_files].fname = fname;
       fs->files[fs->n_files].u_fn = u_fn;
       fs->files[fs->n_files++].f_list = u_id_lst;
-      /*fs->files*/
       return ret;
 }
 
 // adds a segment of u_fn to fs->storage, invisible to the peer it's stored in unless shared with her
-_Bool fs_add_stor(struct filesys* fs, int u_fn, char* data){
+_Bool fs_add_stor(struct filesys* fs, int u_fn, char* data, int data_sz){
       if(fs->storage.sz == fs->storage.cap){
             fs->storage.cap *= 2;
             struct fs_block* tmp = malloc(sizeof(struct fs_block)*fs->storage.cap);
@@ -120,8 +119,23 @@ _Bool fs_add_stor(struct filesys* fs, int u_fn, char* data){
             fs->storage.file_chunks = tmp;
       }
       fs->storage.file_chunks[fs->storage.sz].u_fn = u_fn;
+      fs->storage.file_chunks[fs->storage.sz].data_sz = data_sz;
       fs->storage.file_chunks[fs->storage.sz++].data = data;
       return 1;
+}
+
+struct file_acc* find_file(struct filesys* fs, int u_fn){
+      for(int i = 0; i < fs->n_files; ++i){
+            if(fs->files[i].u_fn == u_fn)return &fs->files[i];
+      }
+      return NULL;
+}
+
+// for this to work, file_share protocol must be added, sends int n_peers, and an int* of u_id's in order to download, as well as f_id
+// fs_add_acc will be called from the above
+void fs_print(struct filesys* fs){
+      for(int i = 0; i < fs->n_files; ++i)
+            printf("%s@%i\n", fs->files[i].fname, fs->files[i].u_fn);
 }
 
 void pl_init(struct peer_list* pl, uint16_t port_num){

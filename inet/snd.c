@@ -74,9 +74,25 @@ _Bool prop_msg(struct loc_addr_clnt_num* la, int peer_no, struct peer_list* pl, 
       if(la){
             abs_snd_msg(la, 1, (alt_msg_type >= 0) ? alt_msg_type : msg_type, 30, msg_sz, la->u_id, sndr, buf, msg_no++, adtnl_int);
       }
+      // TODO: is this usage of peer_no appropriate
       else if((route = glob_peer_route(pl, recp, peer_no, NULL, NULL))){
             abs_snd_msg(&pl->l_a[route->dir_p[0]], 1, msg_type, 30, msg_sz, recp, sndr, buf, msg_no++, adtnl_int);
       }
+      return 1;
+}
+
+// shares a file that i have access to with another user
+_Bool file_share(struct peer_list* pl, int u_id, int u_fn){
+      // sends int n_peers, and an int* of u_id's in order to download, as well as f_id
+      // fs_add_acc will be called from the above
+      /*FILE_SHARE*/
+      struct file_acc* loc_file = find_file(&pl->file_system, u_fn);
+      struct loc_addr_clnt_num* la_r = find_peer(pl, u_id);
+      // f_list's last element is -1
+      // we need to send loc_file.f_list, and .fname
+      return prop_msg(la_r, u_id, pl, FILE_SHARE, -1, 0, NULL, u_id, NULL, u_fn);
+      // if local peer
+      /*if(la)*/
       return 1;
 }
 
@@ -87,6 +103,24 @@ _Bool read_messages(int s, int* recp, char** name, char** msg, int* adtnl_int, i
       if(msg)read(s, *msg, (msg_sz_cap) ? msg_sz_cap : 1024);
       if(adtnl_int)read(s, adtnl_int, 4);
       return 1;
+}
+
+_Bool read_msg_file_share(struct peer_list* pl, int* recp, int* u_fn, int* n_ints, int peer_no){
+      // we just need to read recp, u_fn and number of ints we're about to recv
+      // n_ints must be sent first
+      read(pl->l_a[peer_no].clnt_num, n_ints, 4);
+      /*read_messages(pl->l_a[peer_no].clnt_num, recp, NULL, NULL, u_fn, 0);*/
+      struct loc_addr_clnt_num* la_r = find_peer(pl, *recp);
+      return prop_msg(la_r, peer_no, pl, FILE_SHARE, -1, 0, NULL, *recp, NULL, *u_fn);
+      /*prop_msg must be used here incase of indirect route aka global*/
+
+}
+
+// FILE_ALERT does NOT imply access
+_Bool read_msg_file_alert(struct peer_list* pl, int* recp, int* new_u_fn, int peer_no){
+      read_messages(pl->l_a[peer_no].clnt_num, recp, NULL, NULL, new_u_fn, 0);
+      struct loc_addr_clnt_num* la_r = find_peer(pl, *recp);
+      return prop_msg(la_r, peer_no, pl, FILE_ALERT, -1, 0, NULL, *recp, NULL, *new_u_fn);
 }
 
 // FILE_CHUNK uses msg field to store filename
@@ -154,13 +188,23 @@ void read_messages_pth(struct read_msg_arg* rma){
             // recp refers to the intended recipient of the message's u_id
             int peer_ind = -1;
             switch(msg_type){
+                  case FILE_ALERT:
+                        // new u_fn is stored in new_u_id
+                        read_msg_file_alert(rma->pl, &recp, &new_u_id, rma->index);
+                        next_ufn = new_u_id+1;
+                        break;
+                  case FILE_SHARE:
+                        /*abs_snd_msg();*/
+                        // n_ints in file route is stored in new_u_id for some reason
+                        read_msg_file_share(rma->pl, &recp, &u_fn, &new_u_id, rma->index);
+                        if(recp == rma->pl->u_id)fs_add_acc(&rma->pl->file_system, u_fn, "anon_file", NULL);
+                        break;
                   case FILE_CHUNK:
                         /*int chunk_sz = -1;*/
                         // buf stores file name, new_u_id stores chunk size - for some reason
                         // returns char* of file chunk
                         // TODO: file name shouldn't be sent to me! i'm just a middleman
-                        
-                        fs_add_stor(&rma->pl->file_system, u_fn, read_msg_file_chunk(rma->pl, &recp, buf, &new_u_id, &u_fn, rma->index));
+                        fs_add_stor(&rma->pl->file_system, u_fn, read_msg_file_chunk(rma->pl, &recp, buf, &new_u_id, &u_fn, rma->index), new_u_id);
                         break;
                   case MSG_SND:
                         read_msg_msg_snd(rma->pl, &recp, name, buf, rma->index);
@@ -257,6 +301,9 @@ int* upload_file(struct peer_list* pl, char* fname){
       int* ret = calloc(n_chunks+1, sizeof(int));
       fread(buf, sizeof(char), fsz, fp);
       fclose(fp);
+      // FILE_ALERT simply makes peers aware of new f_id
+      init_prop_msg(pl, 0, FILE_ALERT, NULL, 0, u_fn);
+      // TODO: files should also be distributed among global peers
       for(int i = 0; i < pl->sz; ++i){
             // FILE_CHUNK messages contain only recp, msg - msg contains file name, and adtnl_int - containing chunk sz
             // TODO: sz_per_chunk will be inaccurate on last iteration
@@ -267,5 +314,7 @@ int* upload_file(struct peer_list* pl, char* fname){
             ret[ret[fsz]++] = pl->l_a[i].u_id;
       }
       ret[fsz] = -1;
+      // adding our new file to our access list
+      fs_add_acc(&pl->file_system, u_fn, fname, ret);
       return ret;
 }

@@ -46,7 +46,7 @@ struct read_thread{
 };
 
 struct fs_block{
-      int u_fn;
+      int u_fn, data_sz;
       char* data;
 };
 
@@ -91,8 +91,9 @@ struct read_msg_arg{
       int index;
 };
 
-_Bool fs_add_stor(struct filesys* fs, int u_fn, char* data);
+_Bool fs_add_stor(struct filesys* fs, int u_fn, char* data, int data_sz);
 _Bool fs_add_acc(struct filesys* fs, int u_fn, char* fname, int* u_id_lst);
+void fs_print(struct filesys* fs);
 void fs_init(struct filesys* fs);
 void gpl_init(struct glob_peer_list* gpl);
 void pl_init(struct peer_list* pl, uint16_t port_num);
@@ -115,4 +116,5 @@ int assign_uid();
 void safe_exit(struct peer_list* pl);
 _Bool blech_init(struct peer_list* pl, char* sterm);
 struct loc_addr_clnt_num* find_peer(struct peer_list* pl, int u_id);
+struct file_acc* find_file(struct filesys* fs, int u_fn);
 #endif
