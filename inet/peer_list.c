@@ -85,9 +85,15 @@ void fs_init(struct filesys* fs){
       fs->n_files = 0;
       fs->cap = 1;
       fs->files = malloc(sizeof(struct file_acc)*fs->cap);
+      fs->storage.sz = 0;
+      fs->storage.cap = 1;
+      fs->storage.file_chunks = malloc(sizeof(struct fs_block)*fs->storage.cap);
 }
 
-_Bool fs_add(struct filesys* fs, char* fname, int* u_id_lst){
+// we've been given access to a new file
+// we're already aware of all universal file numbers - this function puts a name and u_id_lst to the u_fn
+// u_id_lst will be the return value of upload_file
+_Bool fs_add_acc(struct filesys* fs, int u_fn, char* fname, int* u_id_lst){
       _Bool ret = 0;
       if(fs->n_files == fs->cap){
             fs->cap *= 2;
@@ -98,9 +104,24 @@ _Bool fs_add(struct filesys* fs, char* fname, int* u_id_lst){
             ret = 1;
       }
       fs->files[fs->n_files].fname = fname;
+      fs->files[fs->n_files].u_fn = u_fn;
       fs->files[fs->n_files++].f_list = u_id_lst;
       /*fs->files*/
       return ret;
+}
+
+// adds a segment of u_fn to fs->storage, invisible to the peer it's stored in unless shared with her
+_Bool fs_add_stor(struct filesys* fs, int u_fn, char* data){
+      if(fs->storage.sz == fs->storage.cap){
+            fs->storage.cap *= 2;
+            struct fs_block* tmp = malloc(sizeof(struct fs_block)*fs->storage.cap);
+            memcpy(tmp, fs->storage.file_chunks, sizeof(struct fs_block)*fs->storage.sz);
+            free(fs->storage.file_chunks);
+            fs->storage.file_chunks = tmp;
+      }
+      fs->storage.file_chunks[fs->storage.sz].u_fn = u_fn;
+      fs->storage.file_chunks[fs->storage.sz++].data = data;
+      return 1;
 }
 
 void pl_init(struct peer_list* pl, uint16_t port_num){

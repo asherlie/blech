@@ -45,12 +45,24 @@ struct read_thread{
       pthread_t* th;
 };
 
-// 
+struct fs_block{
+      int u_fn;
+      char* data;
+};
+
+// there are global file numbers - each time a file is uploaded, it is assigned a unique id
+// all users know when a new file is added
+// only those who have privelige know about the f_list (of u_id's)
+// it takes both to dl a file
+// each element needs u_fn and data segment
 struct filestor{
+      struct fs_block* file_chunks;
+      int sz, cap;
 };
 
 struct file_acc{
       // contains a list of u_id's
+      int u_fn;
       char* fname;
       int* f_list;
 };
@@ -79,7 +91,8 @@ struct read_msg_arg{
       int index;
 };
 
-_Bool fs_add(struct filesys* fs, char* fname, int* u_id_lst);
+_Bool fs_add_stor(struct filesys* fs, int u_fn, char* data);
+_Bool fs_add_acc(struct filesys* fs, int u_fn, char* fname, int* u_id_lst);
 void fs_init(struct filesys* fs);
 void gpl_init(struct glob_peer_list* gpl);
 void pl_init(struct peer_list* pl, uint16_t port_num);

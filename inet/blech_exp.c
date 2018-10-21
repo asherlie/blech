@@ -40,6 +40,10 @@ int main(int argc, char** argv){
                   upload_file(pl, ln+2);
                   continue;
             }
+            // grant access to file
+            // TODO: write this
+            if(read > 3 && *ln == 's' && ln[1] == 'h' && ln[2] == ' '){
+            }
             else if(read > 2 && *ln == 'p' && ln[1] == 'm'){
                   int i = -1;
                   if(!strtoi(ln+3, NULL, &i)){

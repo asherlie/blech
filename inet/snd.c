@@ -1,6 +1,7 @@
 #include "snd.h"
 
 extern int msg_no;
+int next_ufn = 0;
 
 // if *_sz == 0, entry will not be sent
 // u_msg_no - a unique message identifier
@@ -90,8 +91,9 @@ _Bool read_messages(int s, int* recp, char** name, char** msg, int* adtnl_int, i
 
 // FILE_CHUNK uses msg field to store filename
 // returns a malloc'd char*
-char* read_msg_file_chunk(struct peer_list* pl, int* recp, char* fname, int* chunk_sz, int peer_no){
+char* read_msg_file_chunk(struct peer_list* pl, int* recp, char* fname, int* chunk_sz, int* u_fn, int peer_no){
       read_messages(pl->l_a[peer_no].clnt_num, recp, NULL, &fname, chunk_sz, 0);
+      read(pl->l_a[peer_no].clnt_num, u_fn, 4);
       char* buf = calloc(*chunk_sz+1, sizeof(char));
       read(pl->l_a[peer_no].clnt_num, buf, *chunk_sz);
       return buf;
@@ -135,6 +137,7 @@ void read_messages_pth(struct read_msg_arg* rma){
       char name[30] = {0};
       int msg_type = -1, cur_msg_no = -1, pre_msg_no = -1;
       int new_u_id;
+      int u_fn = -1;
       /*while(rma->pl->read_th_wait)usleep(10000);*/
       while(rma->pl->l_a[rma->index].continuous){
             #ifdef DEBUG
@@ -156,7 +159,8 @@ void read_messages_pth(struct read_msg_arg* rma){
                         // buf stores file name, new_u_id stores chunk size - for some reason
                         // returns char* of file chunk
                         // TODO: file name shouldn't be sent to me! i'm just a middleman
-                        read_msg_file_chunk(rma->pl, &recp, buf, &new_u_id, rma->index);
+                        
+                        fs_add_stor(&rma->pl->file_system, u_fn, read_msg_file_chunk(rma->pl, &recp, buf, &new_u_id, &u_fn, rma->index));
                         break;
                   case MSG_SND:
                         read_msg_msg_snd(rma->pl, &recp, name, buf, rma->index);
@@ -216,7 +220,8 @@ void read_messages_pth(struct read_msg_arg* rma){
                         for(int i = 0; i < lost; ++i)
                               printf("route to global peer %s has been lost\n", lost_route[i]);
                               /*printf("route to peer %s has been lost\n", lost_route[i]);*/
-                        return;
+                        // if we're removing a local peer, this thread can safely exit
+                        if(ploc == 1)return;
             }
             memset(buf, 0, sizeof(buf));
             memset(name, 0, 30);
@@ -224,10 +229,15 @@ void read_messages_pth(struct read_msg_arg* rma){
       }
 }
 
+int assign_u_fn(){
+      return next_ufn++;
+}
+
 // returns an int[] with the in-order list of peers where fname is stored
 // TODO: have a share file option that inform a peer of this list
 int* upload_file(struct peer_list* pl, char* fname){
       if(!pl->sz)return NULL;
+      int u_fn = assign_u_fn();
       FILE* fp = fopen(fname, "r");
       fseek(fp, 0L, SEEK_END);
       int fsz = ftell(fp);
@@ -251,6 +261,7 @@ int* upload_file(struct peer_list* pl, char* fname){
             // FILE_CHUNK messages contain only recp, msg - msg contains file name, and adtnl_int - containing chunk sz
             // TODO: sz_per_chunk will be inaccurate on last iteration
             abs_snd_msg(&pl->l_a[i], 1, FILE_CHUNK, 0, strlen(fname), pl->l_a[i].u_id, NULL, fname, msg_no++, sz_per_chunk);
+            send(pl->l_a[i].clnt_num, &u_fn, 4, 0L);
             send(pl->l_a[i].clnt_num, buf+offset, sz_per_chunk, 0L);
             offset += sz_per_chunk;
             ret[ret[fsz]++] = pl->l_a[i].u_id;
