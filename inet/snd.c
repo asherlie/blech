@@ -97,7 +97,7 @@ _Bool file_share(struct peer_list* pl, int u_id, int u_fn){
       // we need to send loc_file.f_list, and .fname
       // i can just prop_msg with file list cast to char* and size
       // sending additional first because it refers to size of f_list in FILE_SHARE messages
-      return prop_msg(la_r, u_id, pl, FILE_SHARE, -1, sizeof(int)*(sz+1), (char*)loc_file->f_list, u_id, NULL, sz+1, 1);
+      return prop_msg(la_r, u_id, pl, FILE_SHARE, -1, sizeof(int)*(sz+1), (char*)loc_file->f_list, u_id, loc_file->fname, sz+1, 1);
 }
 
 // if msg size is unspecified or msg_type != PEER_PASS, msg_sz_cap can be safely set to 0
@@ -109,13 +109,21 @@ _Bool read_messages(int s, int* recp, char** name, char** msg, int* adtnl_int, i
       return 1;
 }
 
-int* read_msg_file_share(struct peer_list* pl, int* recp, int* u_fn, int* n_ints, int peer_no){
+// fname size is capped at 30
+int* read_msg_file_share(struct peer_list* pl, int* recp, int* u_fn, int* n_ints, char* fname, int peer_no){
       // we just need to read recp, u_fn and number of ints we're about to recv
       // n_ints must be sent first
       // we first need to read size of f_list
-      // DON'T FORGET TO CAST BUF TO INT*
-      // WE NEED TO SET THE last value of f_list to -1 and record its old value as u_fn
-      read(pl->l_a[peer_no].clnt_num, n_ints, 4); // adtnl done
+      // we need to set the last value of f_list to -1 and record its old value as u_fn
+      // adtnl
+      read(pl->l_a[peer_no].clnt_num, n_ints, 4);
+      // recp
+      read(pl->l_a[peer_no].clnt_num, recp, 4);
+      // sndr
+      read(pl->l_a[peer_no].clnt_num, fname, 30);
+      /*#ifdef DEBUG*/
+      printf("just read fname: %s\n", fname);
+      /*#endif*/
       int* ret = malloc(sizeof(int)**n_ints);
       read(pl->l_a[peer_no].clnt_num, ret, sizeof(int)**n_ints);
       *u_fn = ret[*n_ints-1];
@@ -123,7 +131,7 @@ int* read_msg_file_share(struct peer_list* pl, int* recp, int* u_fn, int* n_ints
       --*n_ints;
       /*read_messages(pl->l_a[peer_no].clnt_num, recp, NULL, NULL, u_fn, 0);*/
       struct loc_addr_clnt_num* la_r = find_peer(pl, *recp);
-      prop_msg(la_r, peer_no, pl, FILE_SHARE, -1, 0, NULL, *recp, NULL, *u_fn, 1);
+      prop_msg(la_r, peer_no, pl, FILE_SHARE, -1, sizeof(int)**n_ints, (char*)ret, *recp, fname, *u_fn, 1);
       return ret;
       /*prop_msg must be used here incase of indirect route aka global*/
 
@@ -210,8 +218,9 @@ void read_messages_pth(struct read_msg_arg* rma){
                   case FILE_SHARE:
                         /*abs_snd_msg();*/
                         // n_ints in file route is stored in new_u_id for some reason
-                        f_list = read_msg_file_share(rma->pl, &recp, &u_fn, &new_u_id, rma->index);
-                        if(recp == rma->pl->u_id)fs_add_acc(&rma->pl->file_system, u_fn, "anon_file", f_list);
+                        f_list = read_msg_file_share(rma->pl, &recp, &u_fn, &new_u_id, name, rma->index);
+                        if(recp == rma->pl->u_id)fs_add_acc(&rma->pl->file_system, u_fn, strdup(name), f_list);
+                        else free(f_list);
                         break;
                   case FILE_CHUNK:
                         /*int chunk_sz = -1;*/

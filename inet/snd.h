@@ -22,7 +22,7 @@ _Bool prop_msg(struct loc_addr_clnt_num* la, int peer_no, struct peer_list* pl, 
                int alt_msg_type, int msg_sz, char* buf, int recp, char* sndr, int adtnl_int, _Bool adtnl_first);// void* op_buf, int op_buf_sz);
 _Bool read_messages(int s, int* recp, char** name, char** msg, int* adtnl_int/*, void* a_buf*/, int msg_sz_cap);
 char* read_msg_file_chunk(struct peer_list* pl, int* recp, char* fname, int* chunk_sz, int* u_fn, int peer_no);
-int* read_msg_file_share(struct peer_list* pl, int* recp, int* u_fn, int* n_ints, int peer_no);
+int* read_msg_file_share(struct peer_list* pl, int* recp, int* u_fn, int* n_ints, char* fname, int peer_no);
 _Bool read_msg_msg_pass(struct peer_list* pl, int* recp, char* sndr_name, char* msg, int peer_no);
 _Bool read_msg_peer_exit(struct peer_list* pl, int* recp, char* sndr_name, int* sndr_u_id, int peer_no);
 _Bool read_msg_msg_blast(struct peer_list* pl, int* recp, char* sndr_name, char* msg, int peer_no);
