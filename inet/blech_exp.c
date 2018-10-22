@@ -31,43 +31,48 @@ int main(int argc, char** argv){
       while(1){
             read = getline(&ln, &sz, stdin);
             ln[--read] = '\0';
-            if(read == 1 && *ln == 'q')break;
-            if(read == 1 && *ln == 'p'){
-                  pl_print(pl);
-                  continue;
-            }
-            if(read > 2 && *ln == 'u' && ln[1] == ' '){
-                  upload_file(pl, ln+2);
-                  continue;
-            }
-            // grant access to file
-            // TODO: write this
-            if(read > 3 && *ln == 's' && ln[1] == 'h' && ln[2] == ' '){
-            }
-            else if(read > 2 && *ln == 'p' && ln[1] == 'm'){
-                  int i = -1;
-                  if(!strtoi(ln+3, NULL, &i)){
-                        puts("enter a peer # to send a private message");
+            if(read > 1 && *ln == '/'){
+                  if(read >= 3){
+                        if(read >= 4){
+                              // grant access to file
+                              // TODO: write this
+                              if(ln[1] == 's' && ln[2] == 'h' && ln[3] == ' ')continue;
+                        }
+                        if(ln[1] == 'u' && ln[2] == ' '){
+                              upload_file(pl, ln+3);
+                              continue;
+                        }
+                        if(ln[1] == 'p' && ln[2] == 'm'){
+                              int i = -1;
+                              if(!strtoi(ln+4, NULL, &i)){
+                                    puts("enter a peer # to send a private message");
+                                    continue;
+                              }
+                              int recp = -1;
+                              pthread_mutex_lock(&pl->pl_lock);
+                              if(i < pl->sz)
+                                    recp = pl->l_a[i].u_id;
+                                    /*la = &pl->l_a[i];*/
+                              else if(i < pl->gpl->sz+pl->sz){
+                                    /*la = &pl->l_a[*pl->gpl->gpl[i-pl->sz].dir_p];*/
+                                    recp = pl->gpl->gpl[i-pl->sz].u_id;
+                              }
+                              else{
+                                    puts("enter an in range peer number");
+                                    pthread_mutex_unlock(&pl->pl_lock);
+                                    continue;
+                              }
+                              pthread_mutex_unlock(&pl->pl_lock);
+                              read = getline(&ln, &sz, stdin);
+                              ln[--read] = '\0';
+                              snd_pm(pl, ln, read, recp);
+                        }
+                  }
+                  if(ln[1] == 'q')break;
+                  if(ln[1] == 'p'){
+                        pl_print(pl);
                         continue;
                   }
-                  int recp = -1;
-                  pthread_mutex_lock(&pl->pl_lock);
-                  if(i < pl->sz)
-                        recp = pl->l_a[i].u_id;
-                        /*la = &pl->l_a[i];*/
-                  else if(i < pl->gpl->sz+pl->sz){
-                        /*la = &pl->l_a[*pl->gpl->gpl[i-pl->sz].dir_p];*/
-                        recp = pl->gpl->gpl[i-pl->sz].u_id;
-                  }
-                  else{
-                        puts("enter an in range peer number");
-                        pthread_mutex_unlock(&pl->pl_lock);
-                        continue;
-                  }
-                  pthread_mutex_unlock(&pl->pl_lock);
-                  read = getline(&ln, &sz, stdin);
-                  ln[--read] = '\0';
-                  snd_pm(pl, ln, read, recp);
             }
             else snd_txt_to_peers(pl, ln, read);
             printf("%sme%s: \"%s\"\n", ANSI_MGNTA, ANSI_NON, ln);
