@@ -147,7 +147,13 @@ _Bool read_msg_file_alert(struct peer_list* pl, int* recp, int* new_u_fn, int pe
 // FILE_CHUNK uses msg field to store filename
 // returns a malloc'd char*
 char* read_msg_file_chunk(struct peer_list* pl, int* recp, char* fname, int* chunk_sz, int* u_fn, int peer_no){
-      read_messages(pl->l_a[peer_no].clnt_num, recp, NULL, &fname, chunk_sz, 0);
+      #ifdef DEBUG
+      puts("read_msg_file_chunk has been called");
+      #endif
+      read_messages(pl->l_a[peer_no].clnt_num, recp, NULL, &fname, chunk_sz, 35);
+      #ifdef DEBUG
+      printf("received chunk size: %i, f_name: %s\n", *chunk_sz, fname);
+      #endif
       read(pl->l_a[peer_no].clnt_num, u_fn, 4);
       char* buf = calloc(*chunk_sz+1, sizeof(char));
       read(pl->l_a[peer_no].clnt_num, buf, *chunk_sz);
@@ -203,7 +209,8 @@ void read_messages_pth(struct read_msg_arg* rma){
             // TODO: handle this
             if(pre_msg_no == cur_msg_no)puts("uhoh");
             #ifdef DEBUG
-            puts("msg type and message number have been read - awaiting more messages");
+            fputs("msg type and message number have been read - awaiting more messages ", stdout);
+            printf("msg type: %i\n", msg_type);
             n_reads += 2;
             #endif
             // recp refers to the intended recipient of the message's u_id
@@ -330,7 +337,8 @@ int* upload_file(struct peer_list* pl, char* fname){
       for(int i = 0; i < pl->sz; ++i){
             // FILE_CHUNK messages contain only recp, msg - msg contains file name, and adtnl_int - containing chunk sz
             // TODO: sz_per_chunk will be inaccurate on last iteration
-            abs_snd_msg(&pl->l_a[i], 1, FILE_CHUNK, 0, strlen(fname), pl->l_a[i].u_id, NULL, fname, msg_no++, sz_per_chunk, 0);
+            // 35 is max filename size
+            abs_snd_msg(&pl->l_a[i], 1, FILE_CHUNK, 0, 35, pl->l_a[i].u_id, NULL, fname, msg_no++, sz_per_chunk, 0);
             send(pl->l_a[i].clnt_num, &u_fn, 4, 0L);
             send(pl->l_a[i].clnt_num, buf+offset, sz_per_chunk, 0L);
             offset += sz_per_chunk;
