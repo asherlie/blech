@@ -9,7 +9,7 @@ int next_ufn = 0;
 _Bool abs_snd_msg(struct loc_addr_clnt_num* la, int n, int msg_type, int sender_sz, int msg_sz, int recp,
                   char* sender, char* msg, int u_msg_no, int adtnl_int, _Bool adtnl_first){
       #ifdef DEBUG
-      printf("in abs_snd_msg. type: %i, rcp: %i, sndr: %s, msg: %s\n", msg_type, recp, sender, msg);
+      printf("in abs_snd_msg. type: %i, rcp: %i, sndr: %s, msg: %s adtnl int: %i\n", msg_type, recp, sender, msg, adtnl_int);
       #endif
       _Bool ret = 1;
       for(int i = 0; i < n; ++i){
@@ -122,9 +122,6 @@ int* read_msg_file_share(struct peer_list* pl, int* recp, int* u_fn, int* n_ints
       read(pl->l_a[peer_no].clnt_num, recp, 4);
       // sndr
       read(pl->l_a[peer_no].clnt_num, fname, 30);
-      /*#ifdef DEBUG*/
-      printf("just read fname: %s\n", fname);
-      /*#endif*/
       int* ret = malloc(sizeof(int)**n_ints);
       read(pl->l_a[peer_no].clnt_num, ret, sizeof(int)**n_ints);
       *u_fn = ret[*n_ints-1];
@@ -219,6 +216,7 @@ void read_messages_pth(struct read_msg_arg* rma){
             // recp refers to the intended recipient of the message's u_id
             int peer_ind = -1;
             int* f_list = NULL;
+            char* f_data = NULL;
             switch(msg_type){
                   case FILE_ALERT:
                         // new u_fn is stored in new_u_id
@@ -237,7 +235,8 @@ void read_messages_pth(struct read_msg_arg* rma){
                         // buf stores file name, new_u_id stores chunk size - for some reason
                         // returns char* of file chunk
                         // TODO: file name shouldn't be sent to me! i'm just a middleman
-                        fs_add_stor(&rma->pl->file_system, u_fn, read_msg_file_chunk(rma->pl, &recp, buf, &new_u_id, &u_fn, rma->index), new_u_id);
+                        f_data = read_msg_file_chunk(rma->pl, &recp, buf, &new_u_id, &u_fn, rma->index);
+                        fs_add_stor(&rma->pl->file_system, u_fn, f_data, new_u_id);
                         break;
                   case MSG_SND:
                         read_msg_msg_snd(rma->pl, &recp, name, buf, rma->index);
@@ -300,6 +299,8 @@ void read_messages_pth(struct read_msg_arg* rma){
                         // if we're removing a local peer, this thread can safely exit
                         if(ploc == 1)return;
             }
+            f_list = NULL;
+            f_data = NULL;
             memset(buf, 0, sizeof(buf));
             memset(name, 0, 30);
             pre_msg_no = cur_msg_no;
