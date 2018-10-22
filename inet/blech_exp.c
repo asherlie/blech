@@ -73,6 +73,10 @@ int main(int argc, char** argv){
                         pl_print(pl);
                         continue;
                   }
+                  if(ln[1] == 'P'){
+                        fs_print(&pl->file_system);
+                        continue;
+                  }
             }
             else snd_txt_to_peers(pl, ln, read);
             printf("%sme%s: \"%s\"\n", ANSI_MGNTA, ANSI_NON, ln);

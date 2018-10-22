@@ -280,6 +280,7 @@ _Bool in_glob_route(struct peer_list* pl, int pl_ind){
       return 0;
 }
 
+// TODO: should u_id's be printed?
 void pl_print(struct peer_list* pl){
       /*printf("printing %i local peers and %i global peers\n", pl->sz, pl->gpl->sz);*/
       printf("[%sme%s]: %s@%i\n", ANSI_RED, ANSI_NON, pl->name, pl->u_id);
