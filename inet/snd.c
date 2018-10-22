@@ -6,7 +6,8 @@ int next_ufn = 0;
 // if *_sz == 0, entry will not be sent
 // u_msg_no - a unique message identifier
 // adtnl_int will be sent if it's >= 0
-_Bool abs_snd_msg(struct loc_addr_clnt_num* la, int n, int msg_type, int sender_sz, int msg_sz, int recp, char* sender, char* msg, int u_msg_no, int adtnl_int, _Bool adtnl_first){
+_Bool abs_snd_msg(struct loc_addr_clnt_num* la, int n, int msg_type, int sender_sz, int msg_sz, int recp,
+                  char* sender, char* msg, int u_msg_no, int adtnl_int, _Bool adtnl_first){
       #ifdef DEBUG
       printf("in abs_snd_msg. type: %i, rcp: %i, sndr: %s, msg: %s\n", msg_type, recp, sender, msg);
       #endif
@@ -139,9 +140,11 @@ int* read_msg_file_share(struct peer_list* pl, int* recp, int* u_fn, int* n_ints
 
 // FILE_ALERT does NOT imply access
 _Bool read_msg_file_alert(struct peer_list* pl, int* recp, int* new_u_fn, int peer_no){
-      read_messages(pl->l_a[peer_no].clnt_num, recp, NULL, NULL, new_u_fn, 0);
+      char sndr[30];
+      char* nme = sndr;
+      read_messages(pl->l_a[peer_no].clnt_num, recp, &nme, NULL, new_u_fn, 0);
       struct loc_addr_clnt_num* la_r = find_peer(pl, *recp);
-      return prop_msg(la_r, peer_no, pl, FILE_ALERT, -1, 0, NULL, *recp, NULL, *new_u_fn, 0);
+      return prop_msg(la_r, peer_no, pl, FILE_ALERT, -1, 0, NULL, *recp, sndr, *new_u_fn, 0);
 }
 
 // FILE_CHUNK uses msg field to store filename
