@@ -53,7 +53,7 @@ int main(int argc, char** argv){
                               continue;
                         }
                         if(ln[1] == 'u' && ln[2] == ' '){
-                              upload_file(pl, ln+3);
+                              upload_file(pl, strdup(ln+3));
                               continue;
                         }
                         if(ln[1] == 'p' && ln[2] == 'm'){

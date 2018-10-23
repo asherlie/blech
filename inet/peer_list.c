@@ -134,8 +134,13 @@ struct file_acc* find_file(struct filesys* fs, int u_fn){
 // for this to work, file_share protocol must be added, sends int n_peers, and an int* of u_id's in order to download, as well as f_id
 // fs_add_acc will be called from the above
 void fs_print(struct filesys* fs){
-      for(int i = 0; i < fs->n_files; ++i)
-            printf("%s@%i\n", fs->files[i].fname, fs->files[i].u_fn);
+      for(int i = 0; i < fs->n_files; ++i){
+            printf("%s@%i [", fs->files[i].fname, fs->files[i].u_fn);
+            int le = 0;
+            for(; fs->files[i].f_list[le+1] != -1; ++le)
+                  printf("%i, ", fs->files[i].f_list[le]);
+            printf("%i]\n", fs->files[i].f_list[le+1]);
+      }
 }
 
 void pl_init(struct peer_list* pl, uint16_t port_num){
