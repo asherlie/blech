@@ -33,10 +33,24 @@ int main(int argc, char** argv){
             ln[--read] = '\0';
             if(read > 1 && *ln == '/'){
                   if(read >= 3){
-                        if(read >= 4){
-                              // grant access to file
-                              // TODO: write this
-                              if(ln[1] == 's' && ln[2] == 'h' && ln[3] == ' ')continue;
+                        // grant access to file
+                        // TODO: write this
+                        if(ln[1] == 's' && ln[2] == 'h'){
+                              int u_id = -1, u_fn = -1;
+                              puts("enter u_fn followed by u_id");
+                              read = getline(&ln, &sz, stdin);
+                              ln[--read] = '\0';
+                              /*char* u_fn_s = strsep(&ln, " ");*/
+                              /*
+                               *strtoi(u_fn_s, NULL, &u_fn);
+                               *strtoi(ln
+                               */
+                              strtoi(strsep(&ln, " "), NULL, &u_id);
+                              puts(ln);
+                              strtoi(ln, NULL, &u_fn);
+                              printf("sharing file %i with peer %i\n", u_fn, u_id);
+                              if(!file_share(pl, u_id, u_fn))puts("failed to share file");
+                              continue;
                         }
                         if(ln[1] == 'u' && ln[2] == ' '){
                               upload_file(pl, ln+3);

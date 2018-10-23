@@ -353,3 +353,24 @@ int* upload_file(struct peer_list* pl, char* fname){
       fs_add_acc(&pl->file_system, u_fn, fname, ret);
       return ret;
 }
+
+/*
+ *char* req_fchunk(struct peer_list* pl, int u_id, int u_fn){
+ *      int loc_pn = -1;
+ *      [>returns 3 if peer is me, 1 if local peer, 2 if global, 0 else<]
+ *      int hp = has_peer(pl, NULL, u_id, NULL, loc_pn, NULL);
+ *      if(hp == 2)
+ *      abs_snd_msg(pl->);
+ *      char c = 'k';
+ *      return &c;
+ *}
+ */
+
+/*
+ *void download_file(struct peer_list* pl, int u_fn){
+ *      char 
+ *      for(int i = 0; i < pl->file_system->n_files; ++i){
+ *            pl->file_system->files[i].
+ *      }
+ *}
+ */

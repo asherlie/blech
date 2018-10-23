@@ -50,11 +50,12 @@ struct fs_block{
       char* data;
 };
 
-// there are global file numbers - each time a file is uploaded, it is assigned a unique id
-// all users know when a new file is added
-// only those who have privelige know about the f_list (of u_id's)
-// it takes both to dl a file
-// each element needs u_fn and data segment
+/* there are global file numbers - each time a file is uploaded, it is assigned a unique id
+ * all users know when a new file is added
+ * only those who have privelige know about the f_list (of u_id's)
+ * it takes both to dl a file
+ * each element needs u_fn and data segment
+ */
 struct filestor{
       struct fs_block* file_chunks;
       int sz, cap;
@@ -62,7 +63,7 @@ struct filestor{
 
 struct file_acc{
       // contains a list of u_id's
-      int u_fn;
+      int u_fn, f_sz;
       char* fname;
       int* f_list;
 };
