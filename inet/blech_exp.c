@@ -52,6 +52,10 @@ int main(int argc, char** argv){
                               if(!file_share(pl, u_id, u_fn))puts("failed to share file");
                               continue;
                         }
+                        if(ln[1] == 'd' && ln[2] == 'l'){
+                              download_file(pl, 0, "fi.dl");
+                              continue;
+                        }
                         if(ln[1] == 'u' && ln[2] == ' '){
                               upload_file(pl, strdup(ln+3));
                               continue;
