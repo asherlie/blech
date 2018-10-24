@@ -124,6 +124,21 @@ _Bool fs_add_stor(struct filesys* fs, int u_fn, char* data, int data_sz){
       return 1;
 }
 
+struct fs_block* fs_get_stor(struct filesys* fs, int u_fn){
+      for(int i = 0; i < fs->storage.sz; ++i){
+            if(fs->storage.file_chunks[i].u_fn == u_fn)
+                  return &fs->storage.file_chunks[i];
+      }
+      return NULL;
+}
+
+struct file_acc* fs_get_acc(struct filesys* fs, int u_fn){
+      for(int i = 0; i < fs->n_files; ++i){
+            if(fs->files[i].u_fn == u_fn)return &fs->files[i];
+      }
+      return NULL;
+}
+
 struct file_acc* find_file(struct filesys* fs, int u_fn){
       for(int i = 0; i < fs->n_files; ++i){
             if(fs->files[i].u_fn == u_fn)return &fs->files[i];

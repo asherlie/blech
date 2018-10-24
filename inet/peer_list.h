@@ -63,7 +63,7 @@ struct filestor{
 
 struct file_acc{
       // contains a list of u_id's
-      int u_fn, f_sz;
+      int u_fn;// f_sz;
       char* fname;
       int* f_list;
 };
@@ -118,4 +118,6 @@ void safe_exit(struct peer_list* pl);
 _Bool blech_init(struct peer_list* pl, char* sterm);
 struct loc_addr_clnt_num* find_peer(struct peer_list* pl, int u_id);
 struct file_acc* find_file(struct filesys* fs, int u_fn);
+struct fs_block* fs_get_stor(struct filesys* fs, int u_fn);
+struct file_acc* fs_get_acc(struct filesys* fs, int u_fn);
 #endif

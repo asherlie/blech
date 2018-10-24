@@ -3,6 +3,12 @@
 extern int msg_no;
 int next_ufn = 0;
 
+int wait_for_msg(int s, int msg_type, int timeout){
+      int msg = -1, wasted = 0;
+      while(wasted < timeout && (read(s, &msg, 4) == 4) && msg != msg_type)++wasted;
+      return wasted;
+}
+
 // if *_sz == 0, entry will not be sent
 // u_msg_no - a unique message identifier
 // adtnl_int will be sent if it's >= 0
@@ -68,19 +74,22 @@ _Bool snd_pm(struct peer_list* pl, char* msg, int msg_sz, int recp){
 // name of sender
 // peer_no refers to the rma->index of the caller/peer number of the sender
 // alt_msg_type is substituted, if it exists, when a recp is a local peer
-_Bool prop_msg(struct loc_addr_clnt_num* la, int peer_no, struct peer_list* pl, int msg_type,
+// returns socket of closest peer
+int prop_msg(struct loc_addr_clnt_num* la, int peer_no, struct peer_list* pl, int msg_type,
                int alt_msg_type, int msg_sz, char* buf, int recp, char* sndr, int adtnl_int, _Bool adtnl_first){
       /*if(cur_msg_no == pre_msg_no || (msg_type == PEER_PASS && new_u_id == rma->pl->u_id))continue;*/
       // la_r implies MSG_PASS or PEER_PASS
       struct glob_peer_list_entry* route = NULL;
       if(la){
             abs_snd_msg(la, 1, (alt_msg_type >= 0) ? alt_msg_type : msg_type, 30, msg_sz, la->u_id, sndr, buf, msg_no++, adtnl_int, adtnl_first);
+            return la->clnt_num;
       }
       // TODO: is this usage of peer_no appropriate
       else if((route = glob_peer_route(pl, recp, peer_no, NULL, NULL))){
             abs_snd_msg(&pl->l_a[route->dir_p[0]], 1, msg_type, 30, msg_sz, recp, sndr, buf, msg_no++, adtnl_int, adtnl_first);
+            return pl->l_a[route->dir_p[0]].clnt_num;
       }
-      return 1;
+      return -1;
 }
 
 // shares a file that i have access to with another user
@@ -162,6 +171,13 @@ char* read_msg_file_chunk(struct peer_list* pl, int* recp, char* fname, int* chu
       return buf;
 }
 
+_Bool read_msg_file_req(struct peer_list* pl, int* recp, char* sndr, int* u_fn, int peer_no){
+      read_messages(pl->l_a[peer_no].clnt_num, recp, &sndr, NULL, u_fn, 0);
+      struct loc_addr_clnt_num* la_r = find_peer(pl, *recp);
+      /*if(la_r)*/
+      return prop_msg(la_r, peer_no, pl, FILE_REQ, -1, 0, NULL, *recp, sndr, *u_fn, 0);
+}
+
 // these wrappers handle propogation
 // peer_no refers to the rma->index of the caller/peer number of the sender
 _Bool read_msg_msg_pass(struct peer_list* pl, int* recp, char* sndr_name, char* msg, int peer_no){
@@ -219,6 +235,7 @@ void read_messages_pth(struct read_msg_arg* rma){
             int peer_ind = -1;
             int* f_list = NULL;
             char* f_data = NULL;
+            struct  fs_block* tmp_fsb = NULL;
             switch(msg_type){
                   case FILE_ALERT:
                         // new u_fn is stored in new_u_id
@@ -229,8 +246,42 @@ void read_messages_pth(struct read_msg_arg* rma){
                         /*abs_snd_msg();*/
                         // n_ints in file route is stored in new_u_id for some reason
                         f_list = read_msg_file_share(rma->pl, &recp, &u_fn, &new_u_id, name, rma->index);
-                        if(recp == rma->pl->u_id)fs_add_acc(&rma->pl->file_system, u_fn, strdup(name), f_list);
+                        if(recp == rma->pl->u_id){
+                              fs_add_acc(&rma->pl->file_system, u_fn, strdup(name), f_list);
+                              printf("you have been granted access to file \"%s\" with universal file number %i\n", name, u_fn);
+                        }
                         else free(f_list);
+                        break;
+                  case FILE_REQ:
+                        // name refers to name of sender
+                        read_msg_file_req(rma->pl, &recp, name, &u_fn, rma->index);
+                        /* TODO:
+                         * switch over to abs_snd_msg based FCHUNK_PSS handling as to not miss out on messages received between request and fchunk arrival
+                         * could create a queue of files we're waiting for
+                         */
+                        // send data over
+                        if(recp == rma->pl->u_id){
+                              // TODO: add error handling
+                              tmp_fsb = fs_get_stor(&rma->pl->file_system, u_fn);
+                              // send chunk size followed by chunk
+                              new_u_id = FCHUNK_PSS;
+                              send(rma->pl->l_a[rma->index].clnt_num, &new_u_id, 4, 0L);
+                              send(rma->pl->l_a[rma->index].clnt_num, &tmp_fsb->data_sz, 4, 0L);
+                              send(rma->pl->l_a[rma->index].clnt_num, &tmp_fsb->data, tmp_fsb->data_sz, 0L);
+                        }
+                        // wait for data to get back to me so i can send it back to rma->index
+                        // this should be handled by a prop msg
+                        else{
+                              wait_for_msg(rma->pl->l_a[rma->index].clnt_num, FCHUNK_PSS, 20);
+                              // storing data size in new_u_id
+                              read(rma->pl->l_a[rma->index].clnt_num, &new_u_id, 4);
+                              char buf[new_u_id];
+                              int fcp = FCHUNK_PSS;
+                              read(rma->pl->l_a[rma->index].clnt_num, buf, new_u_id);
+                              send(rma->pl->l_a[rma->index].clnt_num, &fcp, 4, 0L);
+                              send(rma->pl->l_a[rma->index].clnt_num, &new_u_id, 4, 0L);
+                              send(rma->pl->l_a[rma->index].clnt_num, buf, new_u_id, 0L);
+                        }
                         break;
                   case FILE_CHUNK:
                         /*int chunk_sz = -1;*/
@@ -300,9 +351,14 @@ void read_messages_pth(struct read_msg_arg* rma){
                               /*printf("route to peer %s has been lost\n", lost_route[i]);*/
                         // if we're removing a local peer, this thread can safely exit
                         if(ploc == 1)return;
+                  /*
+                   *default:
+                   *      continue;
+                   */
             }
             f_list = NULL;
             f_data = NULL;
+            tmp_fsb = NULL;
             memset(buf, 0, sizeof(buf));
             memset(name, 0, 30);
             pre_msg_no = cur_msg_no;
@@ -356,23 +412,37 @@ int* upload_file(struct peer_list* pl, char* fname){
       return ret;
 }
 
-/*
- *char* req_fchunk(struct peer_list* pl, int u_id, int u_fn){
- *      int loc_pn = -1;
- *      [>returns 3 if peer is me, 1 if local peer, 2 if global, 0 else<]
- *      int hp = has_peer(pl, NULL, u_id, NULL, loc_pn, NULL);
- *      if(hp == 2)
- *      abs_snd_msg(pl->);
- *      char c = 'k';
- *      return &c;
- *}
- */
+// this function makes the assumption that any node can have at most one file chunk from any given file
+// sends a FILE_REQ message with recp u_id
+// once a peer with u_id in their pl->l_a sends msg, they will read and send back to me
+// read case will check if pl->u_id == *recp. if so, send to pl->l_a[rma->index].clnt_num data
+// read case will check if la_r, which implies local peer, if so, we're at the penultimate step. we must start a -- wait
+// after each send except for the last, we must start reading for data
+// we'll read size and data
+char* req_fchunk(struct peer_list* pl, int u_id, int u_fn, int* ch_sz){
+      /*int loc_pn = -1;*/
+      /*returns 3 if peer is me, 1 if local peer, 2 if global, 0 else*/
+      /*int hp = has_peer(pl, NULL, u_id, NULL, loc_pn, NULL);*/
+      struct loc_addr_clnt_num* la_r = find_peer(pl, u_id);
+      // initializes a propogated message to u_id and waits for a response
+      int nil = -1;
+      puts("waiting for fchunk pass message from req_fchunk");
+      wait_for_msg((nil = prop_msg(la_r, u_id, pl, FILE_REQ, -1, 0, NULL, u_id, pl->name, u_fn, 0)), FCHUNK_PSS, 20);
+      puts("got our message");
+      /*int sz = -1;*/
+      read(nil, ch_sz, 4);
+      char* ret = malloc(*ch_sz);
+      read(nil, ret, *ch_sz);
+      return ret;
+}
 
-/*
- *void download_file(struct peer_list* pl, int u_fn){
- *      char 
- *      for(int i = 0; i < pl->file_system->n_files; ++i){
- *            pl->file_system->files[i].
- *      }
- *}
- */
+void download_file(struct peer_list* pl, int u_fn, char* dl_fname){
+      char* tmp_chunk = NULL;
+      int sz = -1;
+      struct file_acc* f_inf = fs_get_acc(&pl->file_system, u_fn);
+      FILE* fp = fopen((dl_fname) ? dl_fname : f_inf->fname, "a");
+      for(int i = 0; f_inf->f_list[i] != -1; ++i){
+            tmp_chunk = req_fchunk(pl, f_inf->f_list[i], u_fn, &sz);
+            fwrite(tmp_chunk, sz, 1, fp);
+      }
+}
