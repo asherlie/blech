@@ -98,7 +98,9 @@ _Bool file_share(struct peer_list* pl, int u_id, int u_fn){
       // we need to send loc_file.f_list, and .fname
       // i can just prop_msg with file list cast to char* and size
       // sending additional first because it refers to size of f_list in FILE_SHARE messages
-      return prop_msg(la_r, u_id, pl, FILE_SHARE, -1, sizeof(int)*(sz+1), (char*)loc_file->f_list, u_id, loc_file->fname, sz+1, 1);
+      _Bool ret = prop_msg(la_r, u_id, pl, FILE_SHARE, -1, sizeof(int)*(sz+1), (char*)loc_file->f_list, u_id, loc_file->fname, sz+1, 1);
+      loc_file->f_list[sz] = -1;
+      return ret;
 }
 
 // if msg size is unspecified or msg_type != PEER_PASS, msg_sz_cap can be safely set to 0
@@ -127,12 +129,9 @@ int* read_msg_file_share(struct peer_list* pl, int* recp, int* u_fn, int* n_ints
       *u_fn = ret[*n_ints-1];
       ret[*n_ints-1] = -1;
       --*n_ints;
-      /*read_messages(pl->l_a[peer_no].clnt_num, recp, NULL, NULL, u_fn, 0);*/
       struct loc_addr_clnt_num* la_r = find_peer(pl, *recp);
       prop_msg(la_r, peer_no, pl, FILE_SHARE, -1, sizeof(int)**n_ints, (char*)ret, *recp, fname, *u_fn, 1);
       return ret;
-      /*prop_msg must be used here incase of indirect route aka global*/
-
 }
 
 // FILE_ALERT does NOT imply access
@@ -157,6 +156,9 @@ char* read_msg_file_chunk(struct peer_list* pl, int* recp, char* fname, int* chu
       read(pl->l_a[peer_no].clnt_num, u_fn, 4);
       char* buf = calloc(*chunk_sz+1, sizeof(char));
       read(pl->l_a[peer_no].clnt_num, buf, *chunk_sz);
+      #ifdef DEBUG
+      printf("finished read of size %i of file chunk belonging to u_fn %ls\n", *chunk_sz, u_fn);
+      #endif
       return buf;
 }
 
