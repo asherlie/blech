@@ -139,7 +139,7 @@ void fs_print(struct filesys* fs){
             int le = 0;
             for(; fs->files[i].f_list[le+1] != -1; ++le)
                   printf("%i, ", fs->files[i].f_list[le]);
-            printf("%i]\n", fs->files[i].f_list[le+1]);
+            printf("%i]\n", fs->files[i].f_list[le]);
       }
 }
 
