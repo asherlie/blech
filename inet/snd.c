@@ -382,7 +382,7 @@ int* upload_file(struct peer_list* pl, char* fname){
       // easy system for now
       // TODO: use a better system to calculate n_chunks
       int n_chunks = (n_p <= 10) ? n_p : 10;
-      int sz_per_chunk = fsz/n_chunks;
+      int sz_per_chunk = fsz/n_chunks, ch_sz = -1;
       #ifdef DEBUG
       printf("file will be uploaded in %i chunks\n", n_chunks);
       #endif
@@ -400,9 +400,11 @@ int* upload_file(struct peer_list* pl, char* fname){
             // FILE_CHUNK messages contain only recp, msg - msg contains file name, and adtnl_int - containing chunk sz
             // TODO: sz_per_chunk will be inaccurate on last iteration
             // 35 is max filename size
-            abs_snd_msg(&pl->l_a[i], 1, FILE_CHUNK, 0, 35, pl->l_a[i].u_id, NULL, fname, msg_no++, sz_per_chunk, 0);
+            // if remaining bytes are less than sz_per_chunk, send fsz-offset
+            ch_sz = (fsz-offset < sz_per_chunk) ? fsz-offset : sz_per_chunk;
+            abs_snd_msg(&pl->l_a[i], 1, FILE_CHUNK, 0, 35, pl->l_a[i].u_id, NULL, fname, msg_no++, ch_sz, 0);
             send(pl->l_a[i].clnt_num, &u_fn, 4, 0L);
-            send(pl->l_a[i].clnt_num, buf+offset, sz_per_chunk, 0L);
+            send(pl->l_a[i].clnt_num, buf+offset, ch_sz, 0L);
             offset += sz_per_chunk;
             ret[ret[n_chunks]++] = pl->l_a[i].u_id;
       }
@@ -444,5 +446,6 @@ void download_file(struct peer_list* pl, int u_fn, char* dl_fname){
       for(int i = 0; f_inf->f_list[i] != -1; ++i){
             tmp_chunk = req_fchunk(pl, f_inf->f_list[i], u_fn, &sz);
             fwrite(tmp_chunk, sz, 1, fp);
+            free(tmp_chunk);
       }
 }
