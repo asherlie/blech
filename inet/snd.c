@@ -267,7 +267,7 @@ void read_messages_pth(struct read_msg_arg* rma){
                               new_u_id = FCHUNK_PSS;
                               send(rma->pl->l_a[rma->index].clnt_num, &new_u_id, 4, 0L);
                               send(rma->pl->l_a[rma->index].clnt_num, &tmp_fsb->data_sz, 4, 0L);
-                              send(rma->pl->l_a[rma->index].clnt_num, &tmp_fsb->data, tmp_fsb->data_sz, 0L);
+                              send(rma->pl->l_a[rma->index].clnt_num, tmp_fsb->data, tmp_fsb->data_sz, 0L);
                         }
                         // wait for data to get back to me so i can send it back to rma->index
                         // this should be handled by a prop msg
@@ -445,6 +445,7 @@ void download_file(struct peer_list* pl, int u_fn, char* dl_fname){
       FILE* fp = fopen((dl_fname) ? dl_fname : f_inf->fname, "a");
       for(int i = 0; f_inf->f_list[i] != -1; ++i){
             tmp_chunk = req_fchunk(pl, f_inf->f_list[i], u_fn, &sz);
+            printf("received chunk %i\n", i);
             fwrite(tmp_chunk, sz, 1, fp);
             free(tmp_chunk);
       }
