@@ -57,7 +57,8 @@ int main(int argc, char** argv){
                               continue;
                         }
                         if(ln[1] == 'u' && ln[2] == ' '){
-                              upload_file(pl, strdup(ln+3));
+                              if(upload_file(pl, strdup(ln+3)))puts("file has been uploaded");
+                              else puts("file could not be uploaded");
                               continue;
                         }
                         if(ln[1] == 'p' && ln[2] == 'm'){

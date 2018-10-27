@@ -375,6 +375,7 @@ int* upload_file(struct peer_list* pl, char* fname){
       if(!pl->sz)return NULL;
       int u_fn = assign_u_fn();
       FILE* fp = fopen(fname, "r");
+      if(!fp)return NULL;
       fseek(fp, 0L, SEEK_END);
       int fsz = ftell(fp);
       rewind(fp);
@@ -431,9 +432,10 @@ char* req_fchunk(struct peer_list* pl, int u_id, int u_fn, int* ch_sz){
       puts("waiting for fchunk pass message from req_fchunk");
       wait_for_msg((nil = prop_msg(la_r, u_id, pl, FILE_REQ, -1, 0, NULL, u_id, pl->name, u_fn, 0)), FCHUNK_PSS, 20);
       puts("got our message");
-      /*int sz = -1;*/
+      // TODO: am i reading for msg_no?
       read(nil, ch_sz, 4);
-      char* ret = malloc(*ch_sz);
+      printf("got size of requested data chunk %i\n", *ch_sz);
+      char* ret = calloc(*ch_sz+1, 1);
       read(nil, ret, *ch_sz);
       return ret;
 }
@@ -449,4 +451,5 @@ void download_file(struct peer_list* pl, int u_fn, char* dl_fname){
             fwrite(tmp_chunk, sz, 1, fp);
             free(tmp_chunk);
       }
+      fclose(fp);
 }
