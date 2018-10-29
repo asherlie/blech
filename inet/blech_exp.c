@@ -13,15 +13,28 @@ _Bool strtoi(const char* str, unsigned int* ui, int* i){
       return 1;
 }
 
+void print_usage(char* p_name){
+      printf("usage: %s <nick> [peer address]\n", p_name);
+}
+
+void print_i_help(){
+      puts("    /h : print this menu\n    /u <filename> : upload file\n    /dl : download file"
+      "\n    /sh : share file with another user\n    /pm <peer_no> : send peer_no a private message"
+      "\n    /p : print peers\n    /f : print files\n    /q : quit");
+}
+
 int main(int argc, char** argv){
+      if(argc < 2){
+            print_usage(*argv);
+            return -1;
+      }
       struct peer_list* pl = malloc(sizeof(struct peer_list));
-      /*./b nickname search_host*/
       char* sterm = NULL;
       // will these fields be overwritten when pl_init is called by blech_init?
       if(argc >= 2)pl->name = argv[1];
       else pl->name = strdup("[anonymous]");
       if(argc >= 3)sterm = argv[2];
-      printf("hello %s, welcome to blech\n", pl->name);
+      printf("hello %s, welcome to blech\nenter \"/h\" at any time for help\n", pl->name);
       // attempts to connect to sterm or starts blech in accept only mode
       blech_init(pl, sterm);
       size_t sz = 0;
@@ -32,6 +45,10 @@ int main(int argc, char** argv){
             read = getline(&ln, &sz, stdin);
             ln[--read] = '\0';
             if(read > 1 && *ln == '/'){
+                  if(read == 2 && ln[1] == 'h'){
+                        print_i_help();
+                        continue;
+                  }
                   if(read >= 3){
                         // grant access to file
                         // TODO: write this
@@ -92,7 +109,7 @@ int main(int argc, char** argv){
                         pl_print(pl);
                         continue;
                   }
-                  if(ln[1] == 'P'){
+                  if(ln[1] == 'f'){
                         fs_print(&pl->file_system);
                         continue;
                   }
