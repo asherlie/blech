@@ -60,14 +60,12 @@ int snd_txt_to_peers(struct peer_list* pl, char* msg, int msg_sz){
 
 // recp is a u_id
 _Bool snd_pm(struct peer_list* pl, char* msg, int msg_sz, int recp){
-      /*returns 3 if peer is me, 1 if local peer, 2 if global, 0 else*/
       int loc_addr = -1;
       int peer_type = has_peer(pl, NULL, recp, NULL, &loc_addr, NULL);
       if(peer_type == 1)
             abs_snd_msg(&pl->l_a[loc_addr], 1, MSG_SND, 30, msg_sz, recp, pl->name, msg, msg_no++, -1, 0);
       else if(peer_type == 2)
             abs_snd_msg(&pl->l_a[loc_addr], 1, MSG_PASS, 30, msg_sz, recp, pl->name, msg, msg_no++, -1, 0);
-            /*init_prop_msg(pl, 0, MSG_PASS, msg, msg_sz, -1);*/
       return peer_type;
 }
 
@@ -95,8 +93,6 @@ int prop_msg(struct loc_addr_clnt_num* la, int peer_no, struct peer_list* pl, in
 // shares a file that i have access to with another user
 _Bool file_share(struct peer_list* pl, int u_id, int u_fn){
       // sends int n_peers, and an int* of u_id's in order to download, as well as f_id
-      // fs_add_acc will be called from the above
-      /*FILE_SHARE*/
       struct file_acc* loc_file = find_file(&pl->file_system, u_fn);
       if(!loc_file)return 0;
       int sz = 0;
@@ -217,7 +213,6 @@ void read_messages_pth(struct read_msg_arg* rma){
       int msg_type = -1, cur_msg_no = -1, pre_msg_no = -1;
       int new_u_id;
       int u_fn = -1;
-      /*while(rma->pl->read_th_wait)usleep(10000);*/
       while(rma->pl->l_a[rma->index].continuous){
             #ifdef DEBUG
             int n_reads = 0;
@@ -409,6 +404,7 @@ int* upload_file(struct peer_list* pl, char* fname){
             offset += sz_per_chunk;
             ret[ret[n_chunks]++] = pl->l_a[i].u_id;
       }
+      free(buf);
       ret[n_chunks] = -1;
       // adding our new file to our access list
       fs_add_acc(&pl->file_system, u_fn, fname, ret);

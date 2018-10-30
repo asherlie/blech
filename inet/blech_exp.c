@@ -51,7 +51,6 @@ int main(int argc, char** argv){
                   }
                   if(read >= 3){
                         // grant access to file
-                        // TODO: write this
                         if(ln[1] == 's' && ln[2] == 'h'){
                               int u_id = -1, u_fn = -1;
                               puts("enter u_fn followed by u_id");
@@ -88,9 +87,7 @@ int main(int argc, char** argv){
                               pthread_mutex_lock(&pl->pl_lock);
                               if(i < pl->sz)
                                     recp = pl->l_a[i].u_id;
-                                    /*la = &pl->l_a[i];*/
                               else if(i < pl->gpl->sz+pl->sz){
-                                    /*la = &pl->l_a[*pl->gpl->gpl[i-pl->sz].dir_p];*/
                                     recp = pl->gpl->gpl[i-pl->sz].u_id;
                               }
                               else{
@@ -117,6 +114,7 @@ int main(int argc, char** argv){
             else snd_txt_to_peers(pl, ln, read);
             printf("%sme%s: \"%s\"\n", ANSI_MGNTA, ANSI_NON, ln);
       }
+      free(ln);
       safe_exit(pl);
       return 1;
 }
