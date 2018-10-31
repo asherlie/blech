@@ -63,6 +63,7 @@ _Bool gple_remove_route_entry(struct glob_peer_list_entry* gple, int rel_no){
 }
 
 pthread_t add_read_thread(struct peer_list* pl){
+      pthread_mutex_lock(&pl->rt->r_th_lck);
       if(pl->rt->sz == pl->rt->cap){
             pl->rt->cap *= 2;
             pthread_t* tmp_rt = malloc(sizeof(pthread_t)*pl->rt->cap);
@@ -74,9 +75,10 @@ pthread_t add_read_thread(struct peer_list* pl){
       rma->index = pl->rt->sz;
       rma->pl = pl;
       pthread_t ptt;
+      pl->rt->th[pl->rt->sz++] = ptt;
+      pthread_mutex_unlock(&pl->rt->r_th_lck);
       pthread_create(&ptt, NULL, (void*)&read_messages_pth, rma);
       pthread_detach(ptt);
-      pl->rt->th[pl->rt->sz++] = ptt;
       return ptt;
 }
 
@@ -193,6 +195,8 @@ void rt_init(struct read_thread* rt){
       rt->sz = 0;
       rt->cap = 100;
       rt->th = malloc(sizeof(pthread_t)*rt->cap);
+      // TODO: destroy this
+      pthread_mutex_init(&rt->r_th_lck, NULL);
 }
 
 void pl_add(struct peer_list* pl, struct sockaddr_in la, int clnt_num, char* name, int u_id){

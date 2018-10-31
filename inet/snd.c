@@ -345,7 +345,12 @@ void read_messages_pth(struct read_msg_arg* rma){
                               printf("route to global peer %s has been lost\n", lost_route[i]);
                               /*printf("route to peer %s has been lost\n", lost_route[i]);*/
                         // if we're removing a local peer, this thread can safely exit
-                        if(ploc == 1)return;
+                        if(ploc == 1){
+                              pthread_mutex_lock(&rma->pl->rt->r_th_lck);
+                              --rma->pl->rt->sz;
+                              pthread_mutex_unlock(&rma->pl->rt->r_th_lck);
+                              return;
+                        }
                   /*
                    *default:
                    *      continue;
@@ -442,8 +447,9 @@ void download_file(struct peer_list* pl, int u_fn, char* dl_fname){
       struct file_acc* f_inf = fs_get_acc(&pl->file_system, u_fn);
       FILE* fp = fopen((dl_fname) ? dl_fname : f_inf->fname, "a");
       for(int i = 0; f_inf->f_list[i] != -1; ++i){
+            // printf("iter %i\n", i);
             tmp_chunk = req_fchunk(pl, f_inf->f_list[i], u_fn, &sz);
-            printf("received chunk %i\n", i);
+            // printf("received chunk %i\n", i);
             fwrite(tmp_chunk, sz, 1, fp);
             free(tmp_chunk);
       }

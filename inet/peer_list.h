@@ -41,6 +41,7 @@ struct glob_peer_list{
 };
 
 struct read_thread{
+      pthread_mutex_t r_th_lck;
       int sz, cap;
       pthread_t* th;
 };
