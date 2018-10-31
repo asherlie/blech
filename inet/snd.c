@@ -199,6 +199,16 @@ _Bool read_msg_msg_blast(struct peer_list* pl, int* recp, char* sndr_name, char*
 _Bool read_msg_peer_pass(struct peer_list* pl, int* recp, char* sndr_name, char* msg, int* new_u_id, int peer_no){
       read_messages(pl->l_a[peer_no].clnt_num, recp, &sndr_name, &msg, new_u_id, 30);
       struct loc_addr_clnt_num* la_r = find_peer(pl, *recp);
+      // TODO: could i just check if *recp == peer_no's u_id
+      // if recp is a local peer and they are on the way to new_u_id, do not propogate
+      if(la_r){
+            int n = -1;
+            int* dir_p = get_dir_p(pl, *new_u_id, &n);
+            for(int i = 0; i < n; ++i){
+                  /*if(dir_p[i] == pl->l_a[peer_no].u_id)*/
+                  if(dir_p[i] == peer_no)return 0;
+            }
+      }
       return prop_msg(la_r, peer_no, pl, PEER_PASS, -1, 30, msg, *recp, sndr_name, *new_u_id, 0);
 }
 
@@ -220,7 +230,7 @@ void read_messages_pth(struct read_msg_arg* rma){
             read(rma->pl->l_a[rma->index].clnt_num, &msg_type, 4);
             read(rma->pl->l_a[rma->index].clnt_num, &cur_msg_no, 4);
             // TODO: handle this
-            if(pre_msg_no == cur_msg_no)puts("uhoh");
+            if(pre_msg_no == cur_msg_no)perror("uhoh");
             #ifdef DEBUG
             fputs("msg type and message number have been read - awaiting more messages ", stdout);
             printf("msg type: %i\n", msg_type);

@@ -423,3 +423,14 @@ struct loc_addr_clnt_num* find_peer(struct peer_list* pl, int u_id){
       pthread_mutex_unlock(&pl->pl_lock);
       return ret;
 }
+
+// TODO: can this be replaced by a clal to glob_peer_route?
+int* get_dir_p(struct peer_list* pl, int glob_u_id, int* n){
+      for(int i = 0; i < pl->gpl->sz; ++i){
+            if(pl->gpl->gpl[i].u_id == glob_u_id){
+                  *n = pl->gpl->gpl[i].n_dir_p;
+                  return pl->gpl->gpl[i].dir_p;
+            }
+      }
+      return NULL;
+}

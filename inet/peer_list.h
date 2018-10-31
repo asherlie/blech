@@ -121,4 +121,5 @@ struct loc_addr_clnt_num* find_peer(struct peer_list* pl, int u_id);
 struct file_acc* find_file(struct filesys* fs, int u_fn);
 struct fs_block* fs_get_stor(struct filesys* fs, int u_fn);
 struct file_acc* fs_get_acc(struct filesys* fs, int u_fn);
+int* get_dir_p(struct peer_list* pl, int glob_u_id, int* n);
 #endif
