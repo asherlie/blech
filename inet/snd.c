@@ -216,7 +216,8 @@ _Bool read_msg_msg_snd(struct peer_list* pl, int* recp, char* sndr_name, char* m
       return read_messages(pl->l_a[peer_no].clnt_num, recp, &sndr_name, &msg, NULL, 0);
 }
 
-void read_messages_pth(struct read_msg_arg* rma){
+void* read_messages_pth(void* rm_arg){
+      struct read_msg_arg* rma = (struct read_msg_arg*)rm_arg;
       char buf[1024] = {0};
       int recp = -1;
       char name[30] = {0};
@@ -359,7 +360,7 @@ void read_messages_pth(struct read_msg_arg* rma){
                               pthread_mutex_lock(&rma->pl->rt->r_th_lck);
                               --rma->pl->rt->sz;
                               pthread_mutex_unlock(&rma->pl->rt->r_th_lck);
-                              return;
+                              return NULL;
                         }
                   /*
                    *default:
@@ -373,6 +374,7 @@ void read_messages_pth(struct read_msg_arg* rma){
             memset(name, 0, 30);
             pre_msg_no = cur_msg_no;
       }
+      return NULL;
 }
 
 int assign_u_fn(){

@@ -19,7 +19,8 @@ int net_connect(char* host, int* sock, uint16_t port_num){
       return status;
 }
 
-void accept_connections(struct peer_list* pl){
+void* accept_connections(void* pl_arg){
+      struct peer_list* pl = (struct peer_list*)pl_arg;
       int clnt;
       char name[248] = {0};
       struct sockaddr_in rem_addr;
@@ -89,5 +90,6 @@ void accept_connections(struct peer_list* pl){
             puts("sharing complete");
             #endif
       }
+      return NULL;
 }
 

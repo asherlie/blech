@@ -77,7 +77,7 @@ pthread_t add_read_thread(struct peer_list* pl){
       pthread_t ptt;
       pl->rt->th[pl->rt->sz++] = ptt;
       pthread_mutex_unlock(&pl->rt->r_th_lck);
-      pthread_create(&ptt, NULL, (void*)&read_messages_pth, rma);
+      pthread_create(&ptt, NULL, &read_messages_pth, rma);
       pthread_detach(ptt);
       return ptt;
 }
@@ -407,7 +407,7 @@ _Bool blech_init(struct peer_list* pl, char* sterm){
       }
       pthread_t acc_th;
       /*pthread_mutex_lock(&pl->sock_lock);*/
-      pthread_create(&acc_th, NULL, (void*)&accept_connections, pl);
+      pthread_create(&acc_th, NULL, &accept_connections, pl);
       /*pthread_mutex_unlock(&pl->sock_lock);*/
       #ifdef DEBUG
       puts("accept thread created");

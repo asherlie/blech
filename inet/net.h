@@ -3,5 +3,5 @@
 #include "peer_list.h"
 
 int net_connect(char* host, int* sock, uint16_t port_num);
-void accept_connections(struct peer_list* pl);
+void* accept_connections(void* pl_arg);
 #endif

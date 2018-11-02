@@ -34,7 +34,7 @@ _Bool read_msg_peer_exit(struct peer_list* pl, int* recp, char* sndr_name, int* 
 _Bool read_msg_msg_blast(struct peer_list* pl, int* recp, char* sndr_name, char* msg, int peer_no);
 _Bool read_msg_peer_pass(struct peer_list* pl, int* recp, char* sndr_name, char* msg, int* new_u_id, int peer_no);
 _Bool read_msg_msg_snd(struct peer_list* pl, int* recp, char* sndr_name, char* msg, int peer_no);
-void read_messages_pth(struct read_msg_arg* rma);
+void* read_messages_pth(void* rm_arg);
 int* upload_file(struct peer_list* pl, char* fname);
 _Bool file_share(struct peer_list* pl, int u_id, int u_fn);
 void download_file(struct peer_list* pl, int u_fn, char* dl_fname);
