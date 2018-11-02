@@ -203,11 +203,14 @@ _Bool read_msg_peer_pass(struct peer_list* pl, int* recp, char* sndr_name, char*
       // if recp is a local peer and they are on the way to new_u_id, do not propogate
       // TODO: is this a special case? do i need the following commented out line
       // if(la_r){
+            // convert *recp to local peer ind
+            int rel_recp = -1;
+            for(int i = 0; i < pl->sz; ++i)if(pl->l_a[i].u_id == *recp)rel_recp = i;
             int n = -1;
             int* dir_p = get_dir_p(pl, *new_u_id, &n);
             for(int i = 0; i < n; ++i){
                   /*if(dir_p[i] == pl->l_a[peer_no].u_id)*/
-                  if(dir_p[i] == peer_no)return 0;
+                  if(dir_p[i] == peer_no || dir_p[i] == rel_recp)return 0;
             }
       // }
       return prop_msg(la_r, peer_no, pl, PEER_PASS, -1, 30, msg, *recp, sndr_name, *new_u_id, 0) != -1;
@@ -307,7 +310,8 @@ void* read_messages_pth(void* rm_arg){
                         break;
                   case PEER_PASS:
                         /*pthread_mutex_lock(&rma->pl->sock_lock);*/
-                        if(!read_msg_peer_pass(rma->pl, &recp, name, buf, &new_u_id, rma->index))break;
+                        // TODO: if this returns 0 do we still wnat to add a new peer?
+                        read_msg_peer_pass(rma->pl, &recp, name, buf, &new_u_id, rma->index);
                         /*pthread_mutex_unlock(&rma->pl->sock_lock);*/
                         _Bool has_route;
                         struct glob_peer_list_entry* route = glob_peer_route(rma->pl, recp, rma->index, &has_route, NULL);
