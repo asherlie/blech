@@ -210,7 +210,7 @@ _Bool read_msg_peer_pass(struct peer_list* pl, int* recp, char* sndr_name, char*
                   if(dir_p[i] == peer_no)return 0;
             }
       // }
-      return prop_msg(la_r, peer_no, pl, PEER_PASS, -1, 30, msg, *recp, sndr_name, *new_u_id, 0);
+      return prop_msg(la_r, peer_no, pl, PEER_PASS, -1, 30, msg, *recp, sndr_name, *new_u_id, 0) != -1;
 }
 
 _Bool read_msg_msg_snd(struct peer_list* pl, int* recp, char* sndr_name, char* msg, int peer_no){
@@ -307,7 +307,7 @@ void* read_messages_pth(void* rm_arg){
                         break;
                   case PEER_PASS:
                         /*pthread_mutex_lock(&rma->pl->sock_lock);*/
-                        read_msg_peer_pass(rma->pl, &recp, name, buf, &new_u_id, rma->index);
+                        if(!read_msg_peer_pass(rma->pl, &recp, name, buf, &new_u_id, rma->index))break;
                         /*pthread_mutex_unlock(&rma->pl->sock_lock);*/
                         _Bool has_route;
                         struct glob_peer_list_entry* route = glob_peer_route(rma->pl, recp, rma->index, &has_route, NULL);
