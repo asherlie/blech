@@ -201,14 +201,15 @@ _Bool read_msg_peer_pass(struct peer_list* pl, int* recp, char* sndr_name, char*
       struct loc_addr_clnt_num* la_r = find_peer(pl, *recp);
       // TODO: could i just check if *recp == peer_no's u_id
       // if recp is a local peer and they are on the way to new_u_id, do not propogate
-      if(la_r){
+      // TODO: is this a special case? do i need the following commented out line
+      // if(la_r){
             int n = -1;
             int* dir_p = get_dir_p(pl, *new_u_id, &n);
             for(int i = 0; i < n; ++i){
                   /*if(dir_p[i] == pl->l_a[peer_no].u_id)*/
                   if(dir_p[i] == peer_no)return 0;
             }
-      }
+      // }
       return prop_msg(la_r, peer_no, pl, PEER_PASS, -1, 30, msg, *recp, sndr_name, *new_u_id, 0);
 }
 

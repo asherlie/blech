@@ -108,6 +108,7 @@ int main(int argc, char** argv){
                   }
                   if(ln[1] == 'f'){
                         fs_print(&pl->file_system);
+                        if(!pl->file_system.n_files)puts("you do not have access to any files");
                         continue;
                   }
             }
