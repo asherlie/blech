@@ -75,6 +75,7 @@ pthread_t add_read_thread(struct peer_list* pl){
       rma->index = pl->rt->sz;
       rma->pl = pl;
       pthread_t ptt;
+      #pragma GCC diagnostic ignored "-Wuninitialized"
       pl->rt->th[pl->rt->sz++] = ptt;
       pthread_mutex_unlock(&pl->rt->r_th_lck);
       pthread_create(&ptt, NULL, &read_messages_pth, rma);

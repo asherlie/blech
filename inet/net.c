@@ -65,22 +65,23 @@ void* accept_connections(void* pl_arg){
             printf("sending existing peer info from %i local peers to new peer\n", pl->sz-1);
             #endif
             for(int i = 0; i < pl->sz-1; ++i){
-                  // new peer nickname goes in msg field message field
                   usleep(1000);
-                  abs_snd_msg(&pl->l_a[pl->sz-1], 1, PEER_PASS, 30, 30, pl->l_a[pl->sz-1].u_id, pl->name, pl->l_a[i].clnt_info[0], msg_no++, pl->l_a[i].u_id, 0);
+                  // new peer nickname goes in msg field message field
+                  abs_snd_msg(&pl->l_a[pl->sz-1], 1, PEER_PASS, 30, 30, pl->l_a[pl->sz-1].u_id, pl->l_a[i].clnt_info[0], pl->name, msg_no++, pl->l_a[i].u_id, 0);
                   #ifdef DEBUG
                   printf("sent local peer number %i info about peer #%i\n", pl->sz-1, pl->l_a[i].u_id);
                   #endif
             }
             // alerting new peer of current global peers
             #ifdef DEBUG
-            printf("sending new info to %i glob\n", pl->gpl->sz);
+            printf("sending %i pieces of glob info\n", pl->gpl->sz);
             #endif
-            /*i need to send the new user*/
+            /* i need to send the new user global peer info */
             for(int i = 0; i < pl->gpl->sz; ++i){
                   // new peer nickname goes in msg field message field
                   usleep(1000);
                   abs_snd_msg(&pl->l_a[pl->sz-1], 1, PEER_PASS, 30, 30, pl->l_a[pl->sz-1].u_id, pl->gpl->gpl[i].clnt_info[0], pl->name, msg_no++, pl->gpl->gpl[i].u_id, 0);
+                  // abs_snd_msg(&pl->l_a[pl->gpl->gpl[i].dir_p[0]], 1, msg_type, 30, msg_sz, pl->gpl->gpl[i].u_id, pl->name, msg, msg_no++, op_int, 0);
             }
             pthread_mutex_unlock(&pl->pl_lock);
             memset(name, 0, sizeof(name));

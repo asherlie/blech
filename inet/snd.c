@@ -204,6 +204,9 @@ _Bool read_msg_peer_pass(struct peer_list* pl, int* recp, char* sndr_name, char*
       // TODO: is this a special case? do i need the following commented out line
       // if(la_r){
             // convert *recp to local peer ind
+            // we've received a message informing us of a global peer
+            // we need to be able to determine if this global peer is one of our recipients'local peers
+            // this would be the case if pl->gpl->ourglob.dir_p contains local peer aka peer_no
             int rel_recp = -1;
             for(int i = 0; i < pl->sz; ++i)if(pl->l_a[i].u_id == *recp)rel_recp = i;
             int n = -1;
@@ -311,11 +314,14 @@ void* read_messages_pth(void* rm_arg){
                   case PEER_PASS:
                         /*pthread_mutex_lock(&rma->pl->sock_lock);*/
                         // TODO: if this returns 0 do we still wnat to add a new peer?
+                        /*if(!read_msg_peer_pass(rma->pl, &recp, name, buf, &new_u_id, rma->index))break;*/
                         read_msg_peer_pass(rma->pl, &recp, name, buf, &new_u_id, rma->index);
                         /*pthread_mutex_unlock(&rma->pl->sock_lock);*/
+                        // TODO: is this too strict?
+                        if(recp != rma->pl->u_id)break;
                         _Bool has_route;
                         struct glob_peer_list_entry* route = glob_peer_route(rma->pl, recp, rma->index, &has_route, NULL);
-                        if(route && has_route)continue;
+                        if(route && has_route)break;
                         #ifdef DEBUG
                         if(!route)puts("new user found");
                         else if(!has_route)puts("new route to existing user found");
