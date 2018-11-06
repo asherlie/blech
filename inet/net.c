@@ -67,7 +67,8 @@ void* accept_connections(void* pl_arg){
             for(int i = 0; i < pl->sz-1; ++i){
                   usleep(1000);
                   // new peer nickname goes in msg field message field
-                  abs_snd_msg(&pl->l_a[pl->sz-1], 1, PEER_PASS, 30, 30, pl->l_a[pl->sz-1].u_id, pl->l_a[i].clnt_info[0], pl->name, msg_no++, pl->l_a[i].u_id, 0);
+                  // TODO: are pl->name and pl->laiclntinfo in the correct order?
+                  abs_snd_msg(&pl->l_a[pl->sz-1], 1, PEER_PASS, 30, 30, pl->l_a[pl->sz-1].u_id, pl->name, pl->l_a[i].clnt_info[0], msg_no++, pl->l_a[i].u_id, 0);
                   #ifdef DEBUG
                   printf("sent local peer number %i info about peer #%i\n", pl->sz-1, pl->l_a[i].u_id);
                   #endif
@@ -80,13 +81,10 @@ void* accept_connections(void* pl_arg){
             for(int i = 0; i < pl->gpl->sz; ++i){
                   // new peer nickname goes in msg field message field
                   usleep(1000);
-                  abs_snd_msg(&pl->l_a[pl->sz-1], 1, PEER_PASS, 30, 30, pl->l_a[pl->sz-1].u_id, pl->gpl->gpl[i].clnt_info[0], pl->name, msg_no++, pl->gpl->gpl[i].u_id, 0);
-                  // abs_snd_msg(&pl->l_a[pl->gpl->gpl[i].dir_p[0]], 1, msg_type, 30, msg_sz, pl->gpl->gpl[i].u_id, pl->name, msg, msg_no++, op_int, 0);
+                  abs_snd_msg(&pl->l_a[pl->sz-1], 1, PEER_PASS, 30, 30, pl->l_a[pl->sz-1].u_id, pl->name, pl->gpl->gpl[i].clnt_info[0], msg_no++, pl->gpl->gpl[i].u_id, 0);
             }
             pthread_mutex_unlock(&pl->pl_lock);
             memset(name, 0, sizeof(name));
-            /*memset((char*)addr, 0, sizeof(addr));*/
-            /*free(addr);*/
             #ifdef DEBUG
             puts("sharing complete");
             #endif

@@ -24,7 +24,8 @@ _Bool init_prop_msg(struct peer_list* pl, _Bool skip_lst, int msg_type, char* ms
 int snd_txt_to_peers(struct peer_list* pl, char* msg, int msg_sz);
 _Bool snd_pm(struct peer_list* pl, char* msg, int msg_sz, int recp);
 int prop_msg(struct loc_addr_clnt_num* la, int peer_no, struct peer_list* pl, int msg_type,
-               int alt_msg_type, int msg_sz, char* buf, int recp, char* sndr, int adtnl_int, _Bool adtnl_first);
+             int alt_msg_type, int msg_sz, char* buf, int recp, char* sndr, int adtnl_int, _Bool adtnl_first);
+
 _Bool read_messages(int s, int* recp, char** name, char** msg, int* adtnl_int, int msg_sz_cap);
 _Bool read_msg_file_req(struct peer_list* pl, int* recp, char* sndr, int* u_fn, int peer_no);
 char* read_msg_file_chunk(struct peer_list* pl, int* recp, char* fname, int* chunk_sz, int* u_fn, int peer_no);
@@ -35,8 +36,10 @@ _Bool read_msg_msg_blast(struct peer_list* pl, int* recp, char* sndr_name, char*
 _Bool read_msg_peer_pass(struct peer_list* pl, int* recp, char* sndr_name, char* msg, int* new_u_id, int peer_no);
 _Bool read_msg_msg_snd(struct peer_list* pl, int* recp, char* sndr_name, char* msg, int peer_no);
 void* read_messages_pth(void* rm_arg);
+
 int* upload_file(struct peer_list* pl, char* fname);
 _Bool file_share(struct peer_list* pl, int u_id, int u_fn);
 void download_file(struct peer_list* pl, int u_fn, char* dl_fname);
+
 int assign_u_fn();
 #endif

@@ -96,29 +96,34 @@ _Bool fs_add_stor(struct filesys* fs, int u_fn, char* data, int data_sz);
 _Bool fs_add_acc(struct filesys* fs, int u_fn, char* fname, int* u_id_lst);
 void fs_print(struct filesys* fs);
 void fs_init(struct filesys* fs);
+struct file_acc* find_file(struct filesys* fs, int u_fn);
+struct fs_block* fs_get_stor(struct filesys* fs, int u_fn);
+struct file_acc* fs_get_acc(struct filesys* fs, int u_fn);
+
 void gpl_init(struct glob_peer_list* gpl);
-void pl_init(struct peer_list* pl, uint16_t port_num);
-void pl_add(struct peer_list* pl, struct sockaddr_in la, int clnt_num, char* name, int u_id);
-int pl_remove(struct peer_list* pl, int peer_ind, char** gpl_i);
-void pl_free(struct peer_list* pl);
-void pl_print(struct peer_list* pl);
 void gple_add_route_entry(struct glob_peer_list_entry* gple, int rel_no);
 _Bool gple_remove_route_entry(struct glob_peer_list_entry* gple, int rel_no);
 void gpl_init(struct glob_peer_list* gpl);
 struct glob_peer_list_entry* gpl_add(struct glob_peer_list* gpl, char* name, int u_id);
 void gpl_remove(struct glob_peer_list* gpl, int gpl_i, _Bool keep_name);
 void gpl_free(struct glob_peer_list* gpl);
-int has_peer(struct peer_list* pl, char* name, int u_id, int* u_id_set, int* loc_num, int* glob_num);
 struct glob_peer_list_entry* glob_peer_route(struct peer_list* pl, int u_id, int el, _Bool* cont, int* gpl_ind);
+
+void pl_init(struct peer_list* pl, uint16_t port_num);
+void pl_add(struct peer_list* pl, struct sockaddr_in la, int clnt_num, char* name, int u_id);
+int pl_remove(struct peer_list* pl, int peer_ind, char** gpl_i);
+void pl_free(struct peer_list* pl);
+void pl_print(struct peer_list* pl);
+struct loc_addr_clnt_num* find_peer(struct peer_list* pl, int u_id);
+
+int has_peer(struct peer_list* pl, char* name, int u_id, int* u_id_set, int* loc_num, int* glob_num);
 _Bool in_glob_route(struct peer_list* pl, int pl_ind);
+int* get_dir_p(struct peer_list* pl, int glob_u_id, int* n);
+
 void rt_init(struct read_thread* rt);
 pthread_t add_read_thread(struct peer_list* pl);
-int assign_uid();
-void safe_exit(struct peer_list* pl);
 _Bool blech_init(struct peer_list* pl, char* sterm);
-struct loc_addr_clnt_num* find_peer(struct peer_list* pl, int u_id);
-struct file_acc* find_file(struct filesys* fs, int u_fn);
-struct fs_block* fs_get_stor(struct filesys* fs, int u_fn);
-struct file_acc* fs_get_acc(struct filesys* fs, int u_fn);
-int* get_dir_p(struct peer_list* pl, int glob_u_id, int* n);
+void safe_exit(struct peer_list* pl);
+
+int assign_uid();
 #endif
