@@ -174,6 +174,7 @@ void pl_init(struct peer_list* pl, uint16_t port_num){
       struct sockaddr_in loc_addr;
       bzero(&loc_addr, sizeof(struct sockaddr_in));
       loc_addr.sin_family = AF_INET;
+      // TODO: try to bind different ip
       loc_addr.sin_addr.s_addr = htonl(INADDR_ANY);
       loc_addr.sin_port = htons(port_num);
       int s = socket(AF_INET, SOCK_STREAM, 0);
@@ -182,7 +183,6 @@ void pl_init(struct peer_list* pl, uint16_t port_num){
       listen(s, 0);
       pl->local_sock = s;
       listen(pl->local_sock, 0);
-      pl->local_mac = malloc(sizeof(char)*18);
       pthread_mutex_t pmu;
       pthread_mutex_init(&pmu, NULL);
       pl->pl_lock = pmu;

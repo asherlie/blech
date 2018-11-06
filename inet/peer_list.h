@@ -81,7 +81,6 @@ struct peer_list{
       struct loc_addr_clnt_num* l_a;
       // u_id is unique on network
       int sz, cap, local_sock, u_id;
-      char* local_mac;
       char* name;
       _Bool continuous, read_th_wait;
       struct read_thread* rt;

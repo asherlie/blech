@@ -312,6 +312,10 @@ void* read_messages_pth(void* rm_arg){
                         read_msg_msg_pass(rma->pl, &recp, name, buf, rma->index);
                         break;
                   case PEER_PASS:
+                        /*
+                         *i connect to a local peer. local peer shares their their local peer with me
+                         *i share this 
+                         */
                         /*pthread_mutex_lock(&rma->pl->sock_lock);*/
                         // TODO: if this returns 0 do we still wnat to add a new peer?
                         /*if(!read_msg_peer_pass(rma->pl, &recp, name, buf, &new_u_id, rma->index))break;*/
