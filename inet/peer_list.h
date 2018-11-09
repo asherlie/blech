@@ -20,6 +20,7 @@
 
 struct loc_addr_clnt_num{
       struct sockaddr_in l_a; 
+      struct read_msg_arg* rma;
       int clnt_num, u_id;
       // [client name, mac]
       char** clnt_info;
@@ -99,6 +100,7 @@ void fs_init(struct filesys* fs);
 struct file_acc* find_file(struct filesys* fs, int u_fn);
 struct fs_block* fs_get_stor(struct filesys* fs, int u_fn);
 struct file_acc* fs_get_acc(struct filesys* fs, int u_fn);
+void fs_free(struct filesys* fs);
 
 void gpl_init(struct glob_peer_list* gpl);
 void gple_add_route_entry(struct glob_peer_list_entry* gple, int rel_no);

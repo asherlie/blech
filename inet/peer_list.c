@@ -72,6 +72,11 @@ pthread_t add_read_thread(struct peer_list* pl){
             pl->rt->th = tmp_rt;
       }
       struct read_msg_arg* rma = malloc(sizeof(struct read_msg_arg));
+      // TODO: is this a safe assumption?
+      // should the scope of the caller's (pl_add) pthread
+      // lock be extended past the call to this func
+      // to assure no users have been added
+      pl->l_a[pl->sz-1].rma = rma;
       rma->index = pl->rt->sz;
       rma->pl = pl;
       pthread_t ptt;
@@ -142,6 +147,18 @@ struct file_acc* fs_get_acc(struct filesys* fs, int u_fn){
       return NULL;
 }
 
+void fs_free(struct filesys* fs){
+      for(int i = 0; i < fs->n_files; ++i){
+            free(fs->files->fname);
+            free(fs->files->f_list);
+      }
+      free(fs->files);
+      for(int i = 0; i < fs->storage.sz; ++i){
+            free(fs->storage.file_chunks[i].data);
+      }
+      free(fs->storage.file_chunks);
+}
+
 struct file_acc* find_file(struct filesys* fs, int u_fn){
       for(int i = 0; i < fs->n_files; ++i){
             if(fs->files[i].u_fn == u_fn)return &fs->files[i];
@@ -176,6 +193,7 @@ void pl_init(struct peer_list* pl, uint16_t port_num){
       loc_addr.sin_family = AF_INET;
       // TODO: try to bind different ip
       loc_addr.sin_addr.s_addr = htonl(INADDR_ANY);
+      /*loc_addr.sin_addr.s_addr = inet_addr("~some_ip~");*/
       loc_addr.sin_port = htons(port_num);
       int s = socket(AF_INET, SOCK_STREAM, 0);
       bind(s, (struct sockaddr*)&loc_addr, sizeof(loc_addr));
@@ -242,8 +260,12 @@ void pl_add(struct peer_list* pl, struct sockaddr_in la, int clnt_num, char* nam
 // returns number of global peers who i've lost access to
 int pl_remove(struct peer_list* pl, int peer_ind, char** gpl_i){
       pthread_mutex_lock(&pl->pl_lock);
+      // TODO: resize pl->rt
       pl->l_a[peer_ind].continuous = 0;
+      // we no longer need the baggage associated with peer_ind's read thread
+      free(pl->l_a[peer_ind].rma);
       free(pl->l_a[peer_ind].clnt_info[0]);
+      free(pl->l_a[peer_ind].clnt_info);
       int gpl_s = 0;
       memmove(pl->l_a+peer_ind, pl->l_a+peer_ind+1, pl->sz-peer_ind-1);
       // adjusting gpl routes
@@ -276,10 +298,13 @@ int pl_remove(struct peer_list* pl, int peer_ind, char** gpl_i){
 
 void pl_free(struct peer_list* pl){
       pl->continuous = 0;
-      free(pl->name);
+      /*free(pl->name);*/
       for(; pl->sz; pl_remove(pl, 0, NULL));
+      free(pl->l_a);
       pthread_mutex_destroy(&pl->pl_lock);
       gpl_free(pl->gpl);
+      free(pl->gpl);
+      fs_free(&pl->file_system);
 }
 
 // TODO: synch issues?
@@ -367,6 +392,10 @@ void safe_exit(struct peer_list* pl){
       pthread_mutex_lock(&pl->pl_lock);
       init_prop_msg(pl, 0, PEER_EXIT, NULL, 0, pl->u_id);
       pthread_mutex_unlock(&pl->pl_lock);
+      free(pl->rt->th);
+      free(pl->rt);
+      pl_free(pl);
+      free(pl);
 }
 
 _Bool blech_init(struct peer_list* pl, char* sterm){

@@ -58,6 +58,7 @@ void* accept_connections(void* pl_arg){
             // alert our current peers of new peer
             // name refers to the name of our new peer
             // u_id is u_id of new user
+            // TODO: this prop msg is only travelling one peer wide
             init_prop_msg(pl, 1, PEER_PASS, name, 30, u_id);
             // < sz-1 because sz-1 is new peer - they're aware of themselves
             #ifdef DEBUG
