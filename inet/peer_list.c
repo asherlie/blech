@@ -166,8 +166,6 @@ struct file_acc* find_file(struct filesys* fs, int u_fn){
       return NULL;
 }
 
-// for this to work, file_share protocol must be added, sends int n_peers, and an int* of u_id's in order to download, as well as f_id
-// fs_add_acc will be called from the above
 void fs_print(struct filesys* fs){
       for(int i = 0; i < fs->n_files; ++i){
             printf("%s@%i [", fs->files[i].fname, fs->files[i].u_fn);
@@ -408,6 +406,7 @@ _Bool blech_init(struct peer_list* pl, char* sterm){
             int s, p_u_id;
             bound = net_connect(sterm, &s, PORTNUM);
             if(bound == 0){
+                  // TODO: add timeout here
                   puts("succesfully established a connection");
                   // reading our newly assigned user id
                   read(s, &pl->u_id, 4);

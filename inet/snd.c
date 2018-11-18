@@ -451,9 +451,22 @@ int* upload_file(struct peer_list* pl, char* fname){
 // after each send except for the last, we must start reading for data
 // we'll read size and data
 char* req_fchunk(struct peer_list* pl, int u_id, int u_fn, int* ch_sz){
-      /*int loc_pn = -1;*/
+      char* ret = NULL;
+      // if file chunk being requested is local
+      if(pl->u_id == u_id){
+            for(int i = 0; i < pl->file_system.storage.sz; ++i){
+                  if(pl->file_system.storage.file_chunks[i].u_fn == u_fn){
+                        *ch_sz = pl->file_system.storage.file_chunks[i].data_sz;
+                        /* we need to reallocate memory for this chunk because download_file
+                         * will free memory once file is downloaded */
+                        ret = malloc(*ch_sz+1);
+                        memcpy(ret, pl->file_system.storage.file_chunks[i].data, *ch_sz);
+                        break;
+                  }
+            }
+            return ret;
+      }
       /*returns 3 if peer is me, 1 if local peer, 2 if global, 0 else*/
-      /*int hp = has_peer(pl, NULL, u_id, NULL, loc_pn, NULL);*/
       struct loc_addr_clnt_num* la_r = find_peer(pl, u_id);
       // initializes a propogated message to u_id and waits for a response
       int nil = -1;
@@ -463,7 +476,7 @@ char* req_fchunk(struct peer_list* pl, int u_id, int u_fn, int* ch_sz){
       // TODO: am i reading for msg_no?
       read(nil, ch_sz, 4);
       printf("got size of requested data chunk %i\n", *ch_sz);
-      char* ret = calloc(*ch_sz+1, 1);
+      ret = calloc(*ch_sz+1, 1);
       read(nil, ret, *ch_sz);
       return ret;
 }
