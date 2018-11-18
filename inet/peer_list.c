@@ -189,7 +189,7 @@ void pl_init(struct peer_list* pl, uint16_t port_num){
       pl->l_a = malloc(sizeof(struct loc_addr_clnt_num)*pl->cap);
       pl->continuous = 1;
       struct sockaddr_in loc_addr;
-      bzero(&loc_addr, sizeof(struct sockaddr_in));
+      memset(&loc_addr, 0, sizeof(struct sockaddr_in));
       loc_addr.sin_family = AF_INET;
       // TODO: try to bind different ip
       loc_addr.sin_addr.s_addr = htonl(INADDR_ANY);
