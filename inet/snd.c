@@ -283,14 +283,16 @@ void* read_messages_pth(void* rm_arg){
                               send(rma->pl->l_a[rma->index].clnt_num, tmp_fsb->data, tmp_fsb->data_sz, 0L);
                         }
                         // wait for data to get back to me so i can send it back to rma->index
-                        // this should be handled by a prop msg
+                        // TODO: this should be handled by a prop msg
                         else{
                               wait_for_msg(rma->pl->l_a[rma->index].clnt_num, FCHUNK_PSS, 20);
                               // storing data size in new_u_id
                               read(rma->pl->l_a[rma->index].clnt_num, &new_u_id, 4);
                               char buf[new_u_id];
                               int fcp = FCHUNK_PSS;
+                              // umm why are we just sending back
                               read(rma->pl->l_a[rma->index].clnt_num, buf, new_u_id);
+                              // send to she who requested, read from someone who has it
                               send(rma->pl->l_a[rma->index].clnt_num, &fcp, 4, 0L);
                               send(rma->pl->l_a[rma->index].clnt_num, &new_u_id, 4, 0L);
                               send(rma->pl->l_a[rma->index].clnt_num, buf, new_u_id, 0L);
@@ -454,6 +456,9 @@ char* req_fchunk(struct peer_list* pl, int u_id, int u_fn, int* ch_sz){
       char* ret = NULL;
       // if file chunk being requested is local
       if(pl->u_id == u_id){
+            #ifdef DEBUG
+            puts("downloading a local file");
+            #endif
             for(int i = 0; i < pl->file_system.storage.sz; ++i){
                   if(pl->file_system.storage.file_chunks[i].u_fn == u_fn){
                         *ch_sz = pl->file_system.storage.file_chunks[i].data_sz;
