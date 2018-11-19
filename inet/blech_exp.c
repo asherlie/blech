@@ -57,15 +57,13 @@ int main(int argc, char** argv){
                               read = getline(&ln, &sz, stdin);
                               ln[--read] = '\0';
                               // TODO: bounds checking
-                              char* u_fn_s = strsep(&ln, " ");
-                              printf("got %s as u_id_s\n", u_fn_s);
+                              char* lnsep = ln;
+                              char* u_fn_s = strsep(&lnsep, " ");
                               if(!strtoi(u_fn_s, NULL, &u_fn)){
                                     puts("enter a valid u_fn");
                                     continue;
                               }
-                              printf("got %s as ln\n", ln);
-                              // check for ln == NULL
-                              if(!ln || !strtoi(ln, NULL, &u_id)){
+                              if(!lnsep || !strtoi(lnsep, NULL, &u_id)){
                                     puts("enter a valid u_id");
                                     continue;
                               }
