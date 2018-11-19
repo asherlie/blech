@@ -56,19 +56,26 @@ int main(int argc, char** argv){
                               puts("enter u_fn followed by u_id");
                               read = getline(&ln, &sz, stdin);
                               ln[--read] = '\0';
-                              /*char* u_fn_s = strsep(&ln, " ");*/
-                              /*
-                               *strtoi(u_fn_s, NULL, &u_fn);
-                               *strtoi(ln
-                               */
-                              strtoi(strsep(&ln, " "), NULL, &u_id);
-                              puts(ln);
-                              strtoi(ln, NULL, &u_fn);
+                              // TODO: bounds checking
+                              char* u_fn_s = strsep(&ln, " ");
+                              printf("got %s as u_id_s\n", u_fn_s);
+                              if(!strtoi(u_fn_s, NULL, &u_fn)){
+                                    puts("enter a valid u_fn");
+                                    continue;
+                              }
+                              printf("got %s as ln\n", ln);
+                              // check for ln == NULL
+                              if(!ln || !strtoi(ln, NULL, &u_id)){
+                                    puts("enter a valid u_id");
+                                    continue;
+                              }
                               printf("sharing file %i with peer %i\n", u_fn, u_id);
                               if(!file_share(pl, u_id, u_fn))puts("failed to share file");
                               continue;
                         }
                         if(ln[1] == 'd' && ln[2] == 'l'){
+                              // TODO: implement this
+                              // puts("enter u_fn to download followed by filename to save to"); 
                               download_file(pl, 0, "fi.dl");
                               continue;
                         }

@@ -292,7 +292,7 @@ void* read_messages_pth(void* rm_arg){
                               int fcp = FCHUNK_PSS;
                               // umm why are we just sending back
                               read(rma->pl->l_a[rma->index].clnt_num, buf, new_u_id);
-                              // send to she who requested, read from someone who has it
+                              // TODO: send to she who requested, read from someone who has it
                               send(rma->pl->l_a[rma->index].clnt_num, &fcp, 4, 0L);
                               send(rma->pl->l_a[rma->index].clnt_num, &new_u_id, 4, 0L);
                               send(rma->pl->l_a[rma->index].clnt_num, buf, new_u_id, 0L);
