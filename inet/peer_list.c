@@ -463,3 +463,10 @@ int* get_dir_p(struct peer_list* pl, int glob_u_id, int* n){
       }
       return NULL;
 }
+
+int u_id_to_loc_id(struct peer_list* pl, int u_id){
+      for(int i = 0; i < pl->sz; ++i){
+            if(pl->l_a[i].u_id == u_id)return i;
+      }
+      return -1;
+}
