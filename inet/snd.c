@@ -294,7 +294,8 @@ void* read_messages_pth(void* rm_arg){
                               // TODO: a system should be put in place so intermediate messages can be sent
                               // there will be a struct file_request that stores information about active file
                               // requests. when an FCHUNK_PSS is received and a file_request is active, it's accepted
-                              // confirm that dir_p uses local indices
+                              // dir_p stores global u_ids
+                              // they must be converted to local peer list indices using u_id_to_loc_id
                               /*u_id of file chunk holder is stored in second arg - recp*/
                               int file_holder_ind = u_id_to_loc_id(rma->pl, *get_dir_p(rma->pl, recp, NULL));
                               #ifdef DEBUG
@@ -310,20 +311,18 @@ void* read_messages_pth(void* rm_arg){
                               read(rma->pl->l_a[file_holder_ind].clnt_num, &new_u_id, 4);
                               char buf[new_u_id];
                               int fcp = FCHUNK_PSS;
-                              // umm why are we just sending back
                               /*read(rma->pl->l_a[rma->index].clnt_num, buf, new_u_id);*/
                               read(rma->pl->l_a[file_holder_ind].clnt_num, buf, new_u_id);
-                              // TODO: send to she who requested, read from someone who has it
+                              // TODO: make sure that i'm sending to she who requested, reading from someone who has it
                               send(rma->pl->l_a[rma->index].clnt_num, &fcp, 4, 0L);
                               send(rma->pl->l_a[rma->index].clnt_num, &new_u_id, 4, 0L);
                               send(rma->pl->l_a[rma->index].clnt_num, buf, new_u_id, 0L);
                         }
                         break;
                   case FILE_CHUNK:
-                        /*int chunk_sz = -1;*/
                         // buf stores file name, new_u_id stores chunk size - for some reason
                         // returns char* of file chunk
-                        // TODO: file name shouldn't be sent to me! i'm just a middleman
+                        // TODO: file name shouldn't be sent to me, i'm just a middleman
                         f_data = read_msg_file_chunk(rma->pl, &recp, buf, &new_u_id, &u_fn, rma->index);
                         fs_add_stor(&rma->pl->file_system, u_fn, f_data, new_u_id);
                         break;
