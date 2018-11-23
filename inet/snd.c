@@ -274,6 +274,9 @@ void* read_messages_pth(void* rm_arg){
                          */
                         // send data over
                         if(recp == rma->pl->u_id){
+                              #ifdef DEBUG
+                              printf("FILE_REQ has reached its target u_id: %i\n", recp);
+                              #endif
                               // TODO: add error handling
                               tmp_fsb = fs_get_stor(&rma->pl->file_system, u_fn);
                               // send chunk size followed by chunk
@@ -285,24 +288,41 @@ void* read_messages_pth(void* rm_arg){
                         // wait for data to get back to me so i can send it back to rma->index
                         // TODO: this should be handled by a prop msg
                         else{
-                              wait_for_msg(rma->pl->l_a[rma->index].clnt_num, FCHUNK_PSS, 20);
+                              #ifdef DEBUG
+                              printf("FILE_REQ is on its path to %i by way of %i\n", recp, rma->pl->u_id);
+                              #endif
+                              // TODO: a system should be put in place so intermediate messages can be sent
+                              // there will be a struct file_request that stores information about active file
+                              // requests. when an FCHUNK_PSS is received and a file_request is active, it's accepted
+                              // dir_p stores global u_ids
+                              // they must be converted to local peer list indices using u_id_to_loc_id
+                              /*u_id of file chunk holder is stored in second arg - recp*/
+                              int file_holder_ind = u_id_to_loc_id(rma->pl, *get_dir_p(rma->pl, recp, NULL));
+                              #ifdef DEBUG
+                              printf("found file holder local index: %i, equating to u_id: %i\n", file_holder_ind, *get_dir_p(rma->pl, recp, NULL));
+                              #endif
+                              if(file_holder_ind == -1)puts("this should never happen");
+                              wait_for_msg(rma->pl->l_a[file_holder_ind].clnt_num, FCHUNK_PSS, 20);
                               // storing data size in new_u_id
-                              read(rma->pl->l_a[rma->index].clnt_num, &new_u_id, 4);
+                              // it's appropriate to read from index because each thread has a unique index - or is it
+                              // it's inappropriate - and almost certainly incorrect, however, to assume we'll be writing to it
+                              /*read(rma->pl->l_a[rma->index].clnt_num, &new_u_id, 4);*/
+                              // experimenting with this
+                              read(rma->pl->l_a[file_holder_ind].clnt_num, &new_u_id, 4);
                               char buf[new_u_id];
                               int fcp = FCHUNK_PSS;
-                              // umm why are we just sending back
-                              read(rma->pl->l_a[rma->index].clnt_num, buf, new_u_id);
-                              // TODO: send to she who requested, read from someone who has it
+                              /*read(rma->pl->l_a[rma->index].clnt_num, buf, new_u_id);*/
+                              read(rma->pl->l_a[file_holder_ind].clnt_num, buf, new_u_id);
+                              // TODO: make sure that i'm sending to she who requested, reading from someone who has it
                               send(rma->pl->l_a[rma->index].clnt_num, &fcp, 4, 0L);
                               send(rma->pl->l_a[rma->index].clnt_num, &new_u_id, 4, 0L);
                               send(rma->pl->l_a[rma->index].clnt_num, buf, new_u_id, 0L);
                         }
                         break;
                   case FILE_CHUNK:
-                        /*int chunk_sz = -1;*/
                         // buf stores file name, new_u_id stores chunk size - for some reason
                         // returns char* of file chunk
-                        // TODO: file name shouldn't be sent to me! i'm just a middleman
+                        // TODO: file name shouldn't be sent to me, i'm just a middleman
                         f_data = read_msg_file_chunk(rma->pl, &recp, buf, &new_u_id, &u_fn, rma->index);
                         fs_add_stor(&rma->pl->file_system, u_fn, f_data, new_u_id);
                         break;
@@ -476,6 +496,7 @@ char* req_fchunk(struct peer_list* pl, int u_id, int u_fn, int* ch_sz){
       // initializes a propogated message to u_id and waits for a response
       int nil = -1;
       puts("waiting for fchunk pass message from req_fchunk");
+      //                                                                  recp
       wait_for_msg((nil = prop_msg(la_r, u_id, pl, FILE_REQ, -1, 0, NULL, u_id, pl->name, u_fn, 0)), FCHUNK_PSS, 20);
       puts("got our message");
       // TODO: am i reading for msg_no?

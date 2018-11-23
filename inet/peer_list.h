@@ -127,5 +127,6 @@ pthread_t add_read_thread(struct peer_list* pl);
 _Bool blech_init(struct peer_list* pl, char* sterm);
 void safe_exit(struct peer_list* pl);
 
+int u_id_to_loc_id(struct peer_list* pl, int u_id);
 int assign_uid();
 #endif
