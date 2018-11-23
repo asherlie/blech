@@ -260,14 +260,14 @@ int pl_remove(struct peer_list* pl, int peer_ind, char** gpl_i){
       pthread_mutex_lock(&pl->pl_lock);
       // TODO: resize pl->rt
       pl->l_a[peer_ind].continuous = 0;
+      // TODO: safely free rma
       // we no longer need the baggage associated with peer_ind's read thread
-      free(pl->l_a[peer_ind].rma);
+      // free(pl->l_a[peer_ind].rma);
       free(pl->l_a[peer_ind].clnt_info[0]);
       free(pl->l_a[peer_ind].clnt_info);
       int gpl_s = 0;
       memmove(pl->l_a+peer_ind, pl->l_a+peer_ind+1, pl->sz-peer_ind-1);
       // adjusting gpl routes
-      /*int tmp_route = -1;*/
       for(int i = 0; i < pl->gpl->sz; ++i){
             gple_remove_route_entry(&pl->gpl->gpl[i], peer_ind);
             // if gpl->gpl[i] is inaccessible
