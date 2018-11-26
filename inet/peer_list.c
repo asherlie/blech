@@ -295,6 +295,9 @@ int pl_remove(struct peer_list* pl, int peer_ind, char** gpl_i){
 }
 
 void pl_free(struct peer_list* pl){
+      #ifdef DEBUG
+      puts("pl free has been called");
+      #endif
       pl->continuous = 0;
       /*free(pl->name);*/
       for(; pl->sz; pl_remove(pl, 0, NULL));

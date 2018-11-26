@@ -20,10 +20,10 @@ _Bool abs_snd_msg(struct loc_addr_clnt_num* la, int n, int msg_type, int sender_
       _Bool ret = 1;
       for(int i = 0; i < n; ++i){
             ret = (send(la[i].clnt_num, &msg_type, 4, 0L) == 4);
-            ret = (send(la[i].clnt_num, &u_msg_no, 4, 0L) == 4) && ret;
-            if(adtnl_first && adtnl_int >= 0)ret = (send(la[i].clnt_num, &adtnl_int, 4, 0L) == 4) && ret;
-            if(recp >= 0)ret = (send(la[i].clnt_num, &recp, 4, 0L) == 4) && ret;
-            if(sender_sz)ret = (send(la[i].clnt_num, sender, 30, 0L) == 30) && ret;
+            ret &= (send(la[i].clnt_num, &u_msg_no, 4, 0L) == 4);
+            if(adtnl_first && adtnl_int >= 0)ret &= (send(la[i].clnt_num, &adtnl_int, 4, 0L) == 4);
+            if(recp >= 0)ret &= (send(la[i].clnt_num, &recp, 4, 0L) == 4);
+            if(sender_sz)ret &= (send(la[i].clnt_num, sender, 30, 0L) == 30);
             if(msg_sz)ret = (send(la[i].clnt_num, msg, msg_sz, 0L) == msg_sz) && ret;
             if(!adtnl_first && adtnl_int >= 0)ret = (send(la[i].clnt_num, &adtnl_int, 4, 0L) == 4) && ret;
             #ifdef DEBUG
@@ -52,8 +52,16 @@ _Bool init_prop_msg(struct peer_list* pl, _Bool skip_lst, int msg_type, char* ms
 }
 
 int snd_txt_to_peers(struct peer_list* pl, char* msg, int msg_sz){
+      // TODO: remove this temporary fix, init_prop_msg should work in this case
       pthread_mutex_lock(&pl->pl_lock);
-      _Bool ret = init_prop_msg(pl, 0, MSG_BLAST, msg, msg_sz, -1);
+      _Bool ret = 1;
+      for(int i = 0; i < pl->sz; ++i)
+            ret &= snd_pm(pl, msg, msg_sz, pl->l_a[i].u_id);
+      for(int i = 0; i < pl->gpl->sz; ++i)
+            ret &= snd_pm(pl, msg, msg_sz, pl->gpl->gpl[i].u_id);
+      // TODO: fix init_prop_msg behavior
+      // TODO: the following should be sufficient
+      // _Bool ret = init_prop_msg(pl, 0, MSG_BLAST, msg, msg_sz, -1);
       pthread_mutex_unlock(&pl->pl_lock);
       return ret;
 }
