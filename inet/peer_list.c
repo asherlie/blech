@@ -5,6 +5,7 @@
 #define PORTNUM 2010
 
 int next_uid = 0;
+pthread_mutex_t u_id_lck;
 
 void gpl_init(struct glob_peer_list* gpl){
       gpl->sz = 0;
@@ -13,7 +14,8 @@ void gpl_init(struct glob_peer_list* gpl){
 }
 
 struct glob_peer_list_entry* gpl_add(struct glob_peer_list* gpl, char* name, int u_id){
-      next_uid = u_id+1;
+      /*next_uid = u_id+1;*/
+      set_next_uid(u_id+1);
       #ifdef DEBUG
       printf("adding gpl entry with u_id: %i\n", u_id);
       #endif
@@ -218,7 +220,8 @@ void rt_init(struct read_thread* rt){
 
 void pl_add(struct peer_list* pl, struct sockaddr_in la, int clnt_num, char* name, int u_id){
       if(has_peer(pl, NULL, u_id, NULL, NULL, NULL))return;
-      next_uid = u_id+1;
+      /*next_uid = u_id+1;*/
+      set_next_uid(u_id+1);
       pthread_mutex_lock(&pl->pl_lock);
       if(pl->sz == pl->cap){
             pl->cap *= 2;
@@ -302,6 +305,7 @@ void pl_free(struct peer_list* pl){
       /*free(pl->name);*/
       for(; pl->sz; pl_remove(pl, 0, NULL));
       free(pl->l_a);
+      // seg fault occurs here
       pthread_mutex_destroy(&pl->pl_lock);
       gpl_free(pl->gpl);
       free(pl->gpl);
@@ -383,8 +387,16 @@ int has_peer(struct peer_list* pl, char* name, int u_id, int* u_id_set, int* loc
       return 0;
 }
 
+void set_next_uid(int val){
+      pthread_mutex_lock(&u_id_lck);
+      next_uid = val;
+      pthread_mutex_unlock(&u_id_lck);
+}
+
 int assign_uid(){
+      pthread_mutex_lock(&u_id_lck);
       return next_uid++;
+      pthread_mutex_unlock(&u_id_lck);
 }
 
 // TODO: free peer list memory
@@ -400,6 +412,7 @@ void safe_exit(struct peer_list* pl){
 }
 
 _Bool blech_init(struct peer_list* pl, char* sterm){
+      pthread_mutex_init(&u_id_lck, NULL);
       pl_init(pl, PORTNUM);
       pl->continuous = 1;
       int bound = 1;

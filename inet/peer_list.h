@@ -128,5 +128,6 @@ _Bool blech_init(struct peer_list* pl, char* sterm);
 void safe_exit(struct peer_list* pl);
 
 int u_id_to_loc_id(struct peer_list* pl, int u_id);
+void set_next_uid(int val);
 int assign_uid();
 #endif
