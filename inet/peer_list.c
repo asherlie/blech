@@ -395,8 +395,9 @@ void set_next_uid(int val){
 
 int assign_uid(){
       pthread_mutex_lock(&u_id_lck);
-      return next_uid++;
+      int ret = next_uid++;
       pthread_mutex_unlock(&u_id_lck);
+      return ret;
 }
 
 // TODO: free peer list memory
