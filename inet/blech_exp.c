@@ -24,6 +24,8 @@ void print_i_help(){
 }
 
 int main(int argc, char** argv){
+      // port number defaults to 2010
+      int portnum = 2010;
       if(argc < 2){
             print_usage(*argv);
             return -1;
@@ -36,7 +38,7 @@ int main(int argc, char** argv){
       if(argc >= 3)sterm = argv[2];
       printf("hello %s, welcome to blech\nenter \"/h\" at any time for help\n", pl->name);
       // attempts to connect to sterm or starts blech in accept only mode
-      blech_init(pl, sterm);
+      blech_init(pl, sterm, portnum);
       size_t sz = 0;
       ssize_t read;
       char* ln = NULL;

@@ -27,7 +27,11 @@ void* accept_connections(void* pl_arg){
       socklen_t opt = sizeof(rem_addr);
       int u_id = -1;
       while(pl->continuous){
+            /*listen(pl->local_sock, 0);*/
             clnt = accept(pl->local_sock, (struct sockaddr *)&rem_addr, &opt);
+            #ifdef DEBUG
+            puts("accepted connection");
+            #endif
             pl->read_th_wait = 1;
             // we want to assign a new unique id to our new peer
             u_id = assign_uid(pl);

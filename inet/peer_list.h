@@ -124,7 +124,7 @@ int* get_dir_p(struct peer_list* pl, int glob_u_id, int* n);
 
 void rt_init(struct read_thread* rt);
 pthread_t add_read_thread(struct peer_list* pl);
-_Bool blech_init(struct peer_list* pl, char* sterm);
+_Bool blech_init(struct peer_list* pl, char* sterm, int portnum);
 void safe_exit(struct peer_list* pl);
 
 int u_id_to_loc_id(struct peer_list* pl, int u_id);

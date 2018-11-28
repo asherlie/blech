@@ -2,8 +2,6 @@
 #include "snd.h"
 #include "net.h"
 
-#define PORTNUM 2010
-
 int next_uid = 0;
 pthread_mutex_t u_id_lck;
 
@@ -412,16 +410,16 @@ void safe_exit(struct peer_list* pl){
       free(pl);
 }
 
-_Bool blech_init(struct peer_list* pl, char* sterm){
+_Bool blech_init(struct peer_list* pl, char* sterm, int portnum){
       pthread_mutex_init(&u_id_lck, NULL);
-      pl_init(pl, PORTNUM);
+      pl_init(pl, portnum);
       pl->continuous = 1;
       int bound = 1;
       if(sterm){
             printf("looking for peer matching search string: \"%s\"\n", sterm);
             // sterm is ip
             int s, p_u_id;
-            bound = net_connect(sterm, &s, PORTNUM);
+            bound = net_connect(sterm, &s, portnum);
             if(bound == 0){
                   // TODO: add timeout here
                   puts("succesfully established a connection");

@@ -257,6 +257,11 @@ void* read_messages_pth(void* rm_arg){
             int* f_list = NULL;
             char* f_data = NULL;
             struct  fs_block* tmp_fsb = NULL;
+            /*listen(rma->pl->local_sock, 0);
+             *#ifdef DEBUG
+             *puts("listen mode has been re-enabled");
+             *#endif
+             */
             switch(msg_type){
                   case FILE_ALERT:
                         // new u_fn is stored in new_u_id
