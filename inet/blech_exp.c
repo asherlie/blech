@@ -14,7 +14,7 @@ _Bool strtoi(const char* str, unsigned int* ui, int* i){
 }
 
 void print_usage(char* p_name){
-      printf("usage: %s <nick> [peer address]\n", p_name);
+      printf("usage: %s <nick> [peer address] [-p port number]\n", p_name);
 }
 
 void print_i_help(){
@@ -26,16 +26,31 @@ void print_i_help(){
 int main(int argc, char** argv){
       // port number defaults to 2010
       int portnum = 2010;
-      if(argc < 2){
+      /*_Bool ind_skip[argc]; memset(ind_skip, 0, argc);*/
+      int pset_ind = -1;
+      // to limit scope of tmp_i
+     {
+      int tmp_i;
+      for(int i = 0; i < argc; ++i)
+            if(*argv[i] == '-' && argv[i][1] == 'p' && argc > i+1 && strtoi(argv[i+1], NULL, &tmp_i)){
+                  pset_ind = i;
+                  portnum = tmp_i;
+                  printf("using portno: %i\n", portnum);
+                  break;
+            }
+     }
+      if(argc < 2 || (argc < 4 && pset_ind != -1)){
             print_usage(*argv);
             return -1;
       }
       struct peer_list* pl = malloc(sizeof(struct peer_list));
+      // set name to first arg unless -p <port> is first and second arg
+      int pl_ni = (pset_ind == 0) ? 3 : 1;
+      pl->name = argv[pl_ni];
+      // set search term to second arg unless -p <port> is second and third arg
       char* sterm = NULL;
-      // will these fields be overwritten when pl_init is called by blech_init?
-      if(argc >= 2)pl->name = argv[1];
-      else pl->name = strdup("[anonymous]");
-      if(argc >= 3)sterm = argv[2];
+      if((argc >= 3 && pset_ind == -1) || (argc >= 5 && pset_ind != -1))
+            sterm = (pset_ind == -1) ? argv[2] : ((pl_ni+1 < pset_ind+2) ? argv[pl_ni+1] : argv[pset_ind+2]);
       printf("hello %s, welcome to blech\nenter \"/h\" at any time for help\n", pl->name);
       // attempts to connect to sterm or starts blech in accept only mode
       blech_init(pl, sterm, portnum);
