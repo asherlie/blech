@@ -24,8 +24,8 @@ void print_i_help(){
 }
 
 int main(int argc, char** argv){
-      // port number defaults to 2010
-      int portnum = 2010;
+      // port number defaults to 2012
+      int portnum = 2012;
       /*_Bool ind_skip[argc]; memset(ind_skip, 0, argc);*/
       int pset_ind = -1;
       // to limit scope of tmp_i
@@ -35,7 +35,7 @@ int main(int argc, char** argv){
             if(*argv[i] == '-' && argv[i][1] == 'p' && argc > i+1 && strtoi(argv[i+1], NULL, &tmp_i)){
                   pset_ind = i;
                   portnum = tmp_i;
-                  printf("using portno: %i\n", portnum);
+                  printf("port number has been set to: %i\n", portnum);
                   break;
             }
      }

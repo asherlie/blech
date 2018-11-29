@@ -256,7 +256,7 @@ void* read_messages_pth(void* rm_arg){
             int peer_ind = -1;
             int* f_list = NULL;
             char* f_data = NULL;
-            struct  fs_block* tmp_fsb = NULL;
+            struct fs_block* tmp_fsb = NULL;
             /*listen(rma->pl->local_sock, 0);
              *#ifdef DEBUG
              *puts("listen mode has been re-enabled");
