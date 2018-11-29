@@ -470,13 +470,10 @@ struct loc_addr_clnt_num* find_peer(struct peer_list* pl, int u_id){
 
 // TODO: can this be replaced by a clal to glob_peer_route?
 int* get_dir_p(struct peer_list* pl, int glob_u_id, int* n){
-      for(int i = 0; i < pl->gpl->sz; ++i){
-            if(pl->gpl->gpl[i].u_id == glob_u_id){
-                  *n = pl->gpl->gpl[i].n_dir_p;
-                  return pl->gpl->gpl[i].dir_p;
-            }
-      }
-      return NULL;
+      struct glob_peer_list_entry* gple = glob_peer_route(pl, glob_u_id, -1, NULL, NULL);
+      if(!gple)return NULL;
+      *n = gple->n_dir_p;
+      return gple->dir_p;
 }
 
 int u_id_to_loc_id(struct peer_list* pl, int u_id){

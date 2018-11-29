@@ -105,11 +105,10 @@ void fs_free(struct filesys* fs);
 void gpl_init(struct glob_peer_list* gpl);
 void gple_add_route_entry(struct glob_peer_list_entry* gple, int rel_no);
 _Bool gple_remove_route_entry(struct glob_peer_list_entry* gple, int rel_no);
-void gpl_init(struct glob_peer_list* gpl);
 struct glob_peer_list_entry* gpl_add(struct glob_peer_list* gpl, char* name, int u_id);
+struct glob_peer_list_entry* glob_peer_route(struct peer_list* pl, int u_id, int el, _Bool* cont, int* gpl_ind);
 void gpl_remove(struct glob_peer_list* gpl, int gpl_i, _Bool keep_name);
 void gpl_free(struct glob_peer_list* gpl);
-struct glob_peer_list_entry* glob_peer_route(struct peer_list* pl, int u_id, int el, _Bool* cont, int* gpl_ind);
 
 void pl_init(struct peer_list* pl, uint16_t port_num);
 void pl_add(struct peer_list* pl, struct sockaddr_in la, int clnt_num, char* name, int u_id);
