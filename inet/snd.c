@@ -52,16 +52,8 @@ _Bool init_prop_msg(struct peer_list* pl, _Bool skip_lst, int msg_type, char* ms
 }
 
 int snd_txt_to_peers(struct peer_list* pl, char* msg, int msg_sz){
-      // TODO: remove this temporary fix, init_prop_msg should work in this case
       pthread_mutex_lock(&pl->pl_lock);
-      _Bool ret = 1;
-      for(int i = 0; i < pl->sz; ++i)
-            ret &= snd_pm(pl, msg, msg_sz, pl->l_a[i].u_id);
-      for(int i = 0; i < pl->gpl->sz; ++i)
-            ret &= snd_pm(pl, msg, msg_sz, pl->gpl->gpl[i].u_id);
-      // TODO: fix init_prop_msg behavior
-      // TODO: the following should be sufficient
-      // _Bool ret = init_prop_msg(pl, 0, MSG_BLAST, msg, msg_sz, -1);
+       _Bool ret = init_prop_msg(pl, 0, MSG_BLAST, msg, msg_sz, -1);
       pthread_mutex_unlock(&pl->pl_lock);
       return ret;
 }
