@@ -3,6 +3,7 @@
 #include "snd.h"
 
 extern int msg_no;
+extern int next_ufn;
 
 _Bool strtoi(const char* str, unsigned int* ui, int* i){
       char* res;
@@ -73,7 +74,6 @@ int main(int argc, char** argv){
                               puts("enter u_fn followed by u_id");
                               read = getline(&ln, &sz, stdin);
                               ln[--read] = '\0';
-                              // TODO: bounds checking
                               char* lnsep = ln;
                               char* u_fn_s = strsep(&lnsep, " ");
                               if(!strtoi(u_fn_s, NULL, &u_fn)){
@@ -91,6 +91,16 @@ int main(int argc, char** argv){
                         if(ln[1] == 'd' && ln[2] == 'l'){
                               // TODO: implement this
                               // puts("enter u_fn to download followed by filename to save to"); 
+                              /*void download_file(struct peer_list* pl, int u_fn, char* dl_fname){*/
+                              puts(ln+3);
+                              char* u_fn_s_e = strchr(ln+3, ' ');
+                              // setting whitespace to NUL char so ln+3 will be our u_fn
+                              int u_fn = -1;
+                              if(!strtoi(ln+3, NULL, &u_fn) || (u_fn < 0 || u_fn >= next_ufn)){
+                                    puts("enter a valid u_fn");
+                                    continue;
+                              }
+                              *u_fn_s_e = 0;
                               download_file(pl, 0, "fi.dl");
                               continue;
                         }
