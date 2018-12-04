@@ -130,7 +130,7 @@ int main(int argc, char** argv){
                               pthread_mutex_lock(&pl->pl_lock);
                               if(i < pl->sz)
                                     recp = pl->l_a[i].u_id;
-                              else if(i < pl->gpl->sz+pl->sz){
+                              else if(i >= 0 && i < pl->gpl->sz+pl->sz){
                                     recp = pl->gpl->gpl[i-pl->sz].u_id;
                               }
                               else{

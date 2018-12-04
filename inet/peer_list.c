@@ -11,6 +11,14 @@ void gpl_init(struct glob_peer_list* gpl){
       gpl->gpl = malloc(sizeof(struct glob_peer_list_entry)*gpl->cap);
 }
 
+void resize_buf(int sz, int* cap, int el_sz, void** buf, int factor){
+      *cap *= factor;
+      void* tmp_buf = malloc(el_sz*(*cap));
+      memcpy(tmp_buf, *buf, el_sz*(sz));
+      free(*buf);
+      *buf = tmp_buf;
+}
+
 struct glob_peer_list_entry* gpl_add(struct glob_peer_list* gpl, char* name, int u_id){
       /*next_uid = u_id+1;*/
       set_next_uid(u_id+1);
@@ -18,13 +26,8 @@ struct glob_peer_list_entry* gpl_add(struct glob_peer_list* gpl, char* name, int
       printf("adding gpl entry with u_id: %i\n", u_id);
       #endif
       /*pthread_mutex_lock(pl->pl_lock);*/
-      if(gpl->sz == gpl->cap){
-            gpl->cap *= 2;
-            struct glob_peer_list_entry* tmp_gpl = malloc(sizeof(struct glob_peer_list_entry)*gpl->cap);
-            memcpy(tmp_gpl, gpl->gpl, sizeof(struct glob_peer_list_entry)*gpl->sz);
-            free(gpl->gpl);
-            gpl->gpl = tmp_gpl;
-      }
+      if(gpl->sz == gpl->cap)
+            resize_buf(gpl->sz, &gpl->cap, sizeof(struct glob_peer_list_entry), (void*)&gpl->gpl, 2);
       gpl->gpl[gpl->sz].clnt_info = malloc(sizeof(char*)*2);
       gpl->gpl[gpl->sz].clnt_info[0] = name;
       gpl->gpl[gpl->sz].u_id = u_id;
@@ -38,13 +41,8 @@ struct glob_peer_list_entry* gpl_add(struct glob_peer_list* gpl, char* name, int
 
 // TODO: fix synchronization issues
 void gple_add_route_entry(struct glob_peer_list_entry* gple, int rel_no){
-      if(gple->n_dir_p == gple->dir_p_cap){
-            gple->dir_p_cap *= 2;
-            int* tmp_route = malloc(sizeof(int)*gple->dir_p_cap);
-            memcpy(tmp_route, gple->dir_p, sizeof(int)*gple->n_dir_p);
-            free(gple->dir_p);
-            gple->dir_p = tmp_route;
-      }
+      if(gple->n_dir_p == gple->dir_p_cap)
+            resize_buf(gple->n_dir_p, &gple->dir_p_cap, sizeof(int), (void*)&gple->dir_p, 2);
       gple->dir_p[gple->n_dir_p++] = rel_no;
 }
 
@@ -64,13 +62,8 @@ _Bool gple_remove_route_entry(struct glob_peer_list_entry* gple, int rel_no){
 
 pthread_t add_read_thread(struct peer_list* pl){
       pthread_mutex_lock(&pl->rt->r_th_lck);
-      if(pl->rt->sz == pl->rt->cap){
-            pl->rt->cap *= 2;
-            pthread_t* tmp_rt = malloc(sizeof(pthread_t)*pl->rt->cap);
-            memcpy(tmp_rt, pl->rt->th, sizeof(pthread_t)*pl->rt->sz);
-            free(pl->rt->th);
-            pl->rt->th = tmp_rt;
-      }
+      if(pl->rt->sz == pl->rt->cap)
+            resize_buf(pl->rt->sz, &pl->rt->cap, sizeof(pthread_t), (void*)&pl->rt->th, 2);
       struct read_msg_arg* rma = malloc(sizeof(struct read_msg_arg));
       // TODO: is this a safe assumption?
       // should the scope of the caller's (pl_add) pthread
@@ -104,11 +97,7 @@ void fs_init(struct filesys* fs){
 _Bool fs_add_acc(struct filesys* fs, int u_fn, char* fname, int* u_id_lst){
       _Bool ret = 0;
       if(fs->n_files == fs->cap){
-            fs->cap *= 2;
-            struct file_acc* tmp = malloc(sizeof(struct file_acc)*fs->cap);
-            memcpy(tmp, fs->files, sizeof(struct file_acc)*fs->n_files);
-            free(fs->files);
-            fs->files = tmp;
+            resize_buf(fs->n_files, &fs->cap, sizeof(struct file_acc), (void*)&fs->files, 2);
             ret = 1;
       }
       fs->files[fs->n_files].fname = fname;
@@ -119,13 +108,8 @@ _Bool fs_add_acc(struct filesys* fs, int u_fn, char* fname, int* u_id_lst){
 
 // adds a segment of u_fn to fs->storage, invisible to the peer it's stored in unless shared with her
 _Bool fs_add_stor(struct filesys* fs, int u_fn, char* data, int data_sz){
-      if(fs->storage.sz == fs->storage.cap){
-            fs->storage.cap *= 2;
-            struct fs_block* tmp = malloc(sizeof(struct fs_block)*fs->storage.cap);
-            memcpy(tmp, fs->storage.file_chunks, sizeof(struct fs_block)*fs->storage.sz);
-            free(fs->storage.file_chunks);
-            fs->storage.file_chunks = tmp;
-      }
+      if(fs->storage.sz == fs->storage.cap)
+            resize_buf(fs->storage.sz, &fs->storage.cap, sizeof(struct fs_block), (void*)&fs->storage.file_chunks, 2);
       fs->storage.file_chunks[fs->storage.sz].u_fn = u_fn;
       fs->storage.file_chunks[fs->storage.sz].data_sz = data_sz;
       fs->storage.file_chunks[fs->storage.sz++].data = data;
@@ -221,13 +205,8 @@ void pl_add(struct peer_list* pl, struct sockaddr_in la, int clnt_num, char* nam
       /*next_uid = u_id+1;*/
       set_next_uid(u_id+1);
       pthread_mutex_lock(&pl->pl_lock);
-      if(pl->sz == pl->cap){
-            pl->cap *= 2;
-            struct loc_addr_clnt_num* tmp_l_a = malloc(sizeof(struct loc_addr_clnt_num)*pl->cap);
-            memcpy(tmp_l_a, pl->l_a, sizeof(struct loc_addr_clnt_num)*pl->sz);
-            free(pl->l_a);
-            pl->l_a = tmp_l_a;
-      }
+      if(pl->sz == pl->cap)
+            resize_buf(pl->sz, &pl->cap, sizeof(struct loc_addr_clnt_num), (void*)&pl->l_a, 2);
       pl->l_a[pl->sz].l_a = la;
       pl->l_a[pl->sz].clnt_info = malloc(sizeof(char*)*2);
       if(!name){
@@ -307,6 +286,8 @@ void pl_free(struct peer_list* pl){
       pthread_mutex_destroy(&pl->pl_lock);
       gpl_free(pl->gpl);
       free(pl->gpl);
+      // TODO: fs_free should not be called from within pl_free
+      // could cause seg faults
       fs_free(&pl->file_system);
 }
 
