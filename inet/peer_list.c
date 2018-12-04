@@ -160,7 +160,7 @@ void fs_print(struct filesys* fs){
       }
 }
 
-void pl_init(struct peer_list* pl, uint16_t port_num){
+void pl_init(struct peer_list* pl, uint16_t port_num, in_addr_t*  bind_addr){
       fs_init(&pl->file_system);
       pl->gpl = malloc(sizeof(struct glob_peer_list));
       gpl_init(pl->gpl);
@@ -174,7 +174,7 @@ void pl_init(struct peer_list* pl, uint16_t port_num){
       memset(&loc_addr, 0, sizeof(struct sockaddr_in));
       loc_addr.sin_family = AF_INET;
       // TODO: try to bind different ip
-      loc_addr.sin_addr.s_addr = htonl(INADDR_ANY);
+      loc_addr.sin_addr.s_addr = (bind_addr) ? *bind_addr : htonl(INADDR_ANY);
       /*loc_addr.sin_addr.s_addr = inet_addr("~some_ip~");*/
       loc_addr.sin_port = htons(port_num);
       int s = socket(AF_INET, SOCK_STREAM, 0);
@@ -393,7 +393,7 @@ void safe_exit(struct peer_list* pl){
 
 _Bool blech_init(struct peer_list* pl, char* sterm, int portnum){
       pthread_mutex_init(&u_id_lck, NULL);
-      pl_init(pl, portnum);
+      pl_init(pl, portnum, NULL);
       pl->continuous = 1;
       int bound = 1;
       if(sterm){
