@@ -39,7 +39,7 @@ void* read_messages_pth(void* rm_arg);
 
 int* upload_file(struct peer_list* pl, char* fname);
 _Bool file_share(struct peer_list* pl, int u_id, int u_fn);
-void download_file(struct peer_list* pl, int u_fn, char* dl_fname);
+_Bool download_file(struct peer_list* pl, int u_fn, char* dl_fname);
 
 int assign_u_fn();
 #endif

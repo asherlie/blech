@@ -95,13 +95,15 @@ int main(int argc, char** argv){
                               puts(ln+3);
                               char* u_fn_s_e = strchr(ln+3, ' ');
                               // setting whitespace to NUL char so ln+3 will be our u_fn
+                              *u_fn_s_e = 0;
                               int u_fn = -1;
+                              char fname[] = "tmp_name";
                               if(!strtoi(ln+3, NULL, &u_fn) || (u_fn < 0 || u_fn >= next_ufn)){
                                     puts("enter a valid u_fn");
                                     continue;
                               }
-                              *u_fn_s_e = 0;
-                              download_file(pl, 0, "fi.dl");
+                              if(!download_file(pl, u_fn, fname))printf("you do not have access to file with u_fn %i\n", u_fn);
+                              else printf("file with u_fn %i has succesfully been downloaded as %s\n", u_fn, fname);
                               continue;
                         }
                         if(ln[1] == 'u' && ln[2] == ' '){

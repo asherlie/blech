@@ -512,10 +512,11 @@ char* req_fchunk(struct peer_list* pl, int u_id, int u_fn, int* ch_sz){
       return ret;
 }
 
-void download_file(struct peer_list* pl, int u_fn, char* dl_fname){
+_Bool download_file(struct peer_list* pl, int u_fn, char* dl_fname){
       char* tmp_chunk = NULL;
       int sz = -1;
       struct file_acc* f_inf = fs_get_acc(&pl->file_system, u_fn);
+      if(!f_inf)return 0;
       FILE* fp = fopen((dl_fname) ? dl_fname : f_inf->fname, "a");
       for(int i = 0; f_inf->f_list[i] != -1; ++i){
             // printf("iter %i\n", i);
@@ -525,4 +526,5 @@ void download_file(struct peer_list* pl, int u_fn, char* dl_fname){
             free(tmp_chunk);
       }
       fclose(fp);
+      return 1;
 }
