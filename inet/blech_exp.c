@@ -89,16 +89,25 @@ int main(int argc, char** argv){
                               continue;
                         }
                         if(ln[1] == 'd' && ln[2] == 'l'){
-                              // TODO: implement this
-                              // puts("enter u_fn to download followed by filename to save to"); 
-                              /*void download_file(struct peer_list* pl, int u_fn, char* dl_fname){*/
-                              puts(ln+3);
-                              char* u_fn_s_e = strchr(ln+3, ' ');
+                              puts("enter u_fn to download followed by filename to save to"); 
+                              read = getline(&ln, &sz, stdin);
+                              ln[--read] = '\0';
+                              char* u_fn_s_e = strchr(ln, ' ');
+                              // TODO: clean up error handling
+                              if(!read || !u_fn_s_e){
+                                    puts("enter a valid u_fn");
+                                    continue;
+                              }
+                              // if there are no chars after u_fn
+                              if(read < u_fn_s_e-ln){
+                                    puts("enter a valid filename");
+                                    continue;
+                              }
+                              char* fname = u_fn_s_e+1;
                               // setting whitespace to NUL char so ln+3 will be our u_fn
                               *u_fn_s_e = 0;
                               int u_fn = -1;
-                              char fname[] = "tmp_name";
-                              if(!strtoi(ln+3, NULL, &u_fn) || (u_fn < 0 || u_fn >= next_ufn)){
+                              if(!strtoi(ln, NULL, &u_fn) || (u_fn < 0 || u_fn >= next_ufn)){
                                     puts("enter a valid u_fn");
                                     continue;
                               }
