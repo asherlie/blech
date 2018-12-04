@@ -500,13 +500,19 @@ char* req_fchunk(struct peer_list* pl, int u_id, int u_fn, int* ch_sz){
       struct loc_addr_clnt_num* la_r = find_peer(pl, u_id);
       // initializes a propogated message to u_id and waits for a response
       int nil = -1;
+      #ifdef DEBUG
       puts("waiting for fchunk pass message from req_fchunk");
+      #endif
       //                                                                  recp
       wait_for_msg((nil = prop_msg(la_r, u_id, pl, FILE_REQ, -1, 0, NULL, u_id, pl->name, u_fn, 0)), FCHUNK_PSS, 20);
+      #ifdef DEBUG
       puts("got our message");
+      #endif
       // TODO: am i reading for msg_no?
       read(nil, ch_sz, 4);
+      #ifdef DEBUG
       printf("got size of requested data chunk %i\n", *ch_sz);
+      #endif
       ret = calloc(*ch_sz+1, 1);
       read(nil, ret, *ch_sz);
       return ret;
