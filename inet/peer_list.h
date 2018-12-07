@@ -110,7 +110,8 @@ struct glob_peer_list_entry* glob_peer_route(struct peer_list* pl, int u_id, int
 void gpl_remove(struct glob_peer_list* gpl, int gpl_i, _Bool keep_name);
 void gpl_free(struct glob_peer_list* gpl);
 
-void pl_init(struct peer_list* pl, uint16_t port_num, in_addr_t*  bind_addr);
+void pl_set_local_sock(struct peer_list* pl, in_addr_t* bind_addr, uint16_t port_num);
+void pl_init(struct peer_list* pl);
 void pl_add(struct peer_list* pl, struct sockaddr_in la, int clnt_num, char* name, int u_id);
 int pl_remove(struct peer_list* pl, int peer_ind, char** gpl_i);
 void pl_free(struct peer_list* pl);

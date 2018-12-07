@@ -160,7 +160,20 @@ void fs_print(struct filesys* fs){
       }
 }
 
-void pl_init(struct peer_list* pl, uint16_t port_num, in_addr_t*  bind_addr){
+void pl_set_local_sock(struct peer_list* pl, in_addr_t* bind_addr, uint16_t port_num){
+      struct sockaddr_in loc_addr;
+      memset(&loc_addr, 0, sizeof(struct sockaddr_in));
+      loc_addr.sin_family = AF_INET;
+      loc_addr.sin_port = htons(port_num);
+      loc_addr.sin_addr.s_addr = (bind_addr) ? *bind_addr : htonl(INADDR_ANY);
+      /*loc_addr.sin_addr.s_addr = inet_addr("~some_ip~");*/
+      int s = socket(AF_INET, SOCK_STREAM, 0);
+      bind(s, (struct sockaddr*)&loc_addr, sizeof(loc_addr));
+      pl->local_sock = s;
+      listen(pl->local_sock, 0);
+}
+
+void pl_init(struct peer_list* pl){
       fs_init(&pl->file_system);
       pl->gpl = malloc(sizeof(struct glob_peer_list));
       gpl_init(pl->gpl);
@@ -170,19 +183,8 @@ void pl_init(struct peer_list* pl, uint16_t port_num, in_addr_t*  bind_addr){
       pl->cap = 1;
       pl->l_a = malloc(sizeof(struct loc_addr_clnt_num)*pl->cap);
       pl->continuous = 1;
-      struct sockaddr_in loc_addr;
-      memset(&loc_addr, 0, sizeof(struct sockaddr_in));
-      loc_addr.sin_family = AF_INET;
-      // TODO: try to bind different ip
-      loc_addr.sin_addr.s_addr = (bind_addr) ? *bind_addr : htonl(INADDR_ANY);
-      /*loc_addr.sin_addr.s_addr = inet_addr("~some_ip~");*/
-      loc_addr.sin_port = htons(port_num);
-      int s = socket(AF_INET, SOCK_STREAM, 0);
-      bind(s, (struct sockaddr*)&loc_addr, sizeof(loc_addr));
       // listening mode
-      listen(s, 0);
-      pl->local_sock = s;
-      listen(pl->local_sock, 0);
+      /*listen(s, 0);*/
       pthread_mutex_t pmu;
       pthread_mutex_init(&pmu, NULL);
       pl->pl_lock = pmu;
@@ -393,7 +395,10 @@ void safe_exit(struct peer_list* pl){
 
 _Bool blech_init(struct peer_list* pl, char* sterm, int portnum){
       pthread_mutex_init(&u_id_lck, NULL);
-      pl_init(pl, portnum, NULL);
+      pl_init(pl);
+      pl_set_local_sock(pl, NULL, portnum);
+      /*void pl_set_local_sock(struct peer_list* p, in_addr_t* bind_addr, uint16_t port_num);*/
+      /*inet_addr("~some_ip~");*/
       pl->continuous = 1;
       int bound = 1;
       if(sterm){
