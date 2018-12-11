@@ -83,7 +83,7 @@ struct peer_list{
       // u_id is unique on network
       int sz, cap, local_sock, u_id;
       char* name;
-      _Bool continuous, read_th_wait;
+      _Bool continuous, read_th_wait, sock_set;
       struct read_thread* rt;
       struct filesys file_system;
 };

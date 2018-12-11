@@ -161,6 +161,8 @@ void fs_print(struct filesys* fs){
 }
 
 void pl_set_local_sock(struct peer_list* pl, in_addr_t* bind_addr, uint16_t port_num){
+      if(pl->sock_set)close(pl->local_sock);
+      pl->sock_set = 1;
       struct sockaddr_in loc_addr;
       memset(&loc_addr, 0, sizeof(struct sockaddr_in));
       loc_addr.sin_family = AF_INET;
@@ -182,6 +184,7 @@ void pl_init(struct peer_list* pl){
       pl->sz = 0;
       pl->cap = 1;
       pl->l_a = malloc(sizeof(struct loc_addr_clnt_num)*pl->cap);
+      pl->sock_set = 0;
       pl->continuous = 1;
       // listening mode
       /*listen(s, 0);*/
@@ -396,9 +399,11 @@ void safe_exit(struct peer_list* pl){
 _Bool blech_init(struct peer_list* pl, char* sterm, int portnum){
       pthread_mutex_init(&u_id_lck, NULL);
       pl_init(pl);
+      // TODO: self assign ip in local range and auto attempt to connect to others in range
+      // net_connect should be called until successful
+      /*in_addr_t iad = htonl(inet_addr("ipaddr_string"));*/
+      /*pl_set_local_sock(pl, &iad, portnum);*/
       pl_set_local_sock(pl, NULL, portnum);
-      /*void pl_set_local_sock(struct peer_list* p, in_addr_t* bind_addr, uint16_t port_num);*/
-      /*inet_addr("~some_ip~");*/
       pl->continuous = 1;
       int bound = 1;
       if(sterm){
