@@ -207,7 +207,6 @@ void rt_init(struct read_thread* rt){
 
 void pl_add(struct peer_list* pl, struct sockaddr_in la, int clnt_num, char* name, int u_id){
       if(has_peer(pl, NULL, u_id, NULL, NULL, NULL))return;
-      /*next_uid = u_id+1;*/
       set_next_uid(u_id+1);
       pthread_mutex_lock(&pl->pl_lock);
       if(pl->sz == pl->cap)
@@ -401,8 +400,12 @@ _Bool blech_init(struct peer_list* pl, char* sterm, int portnum){
       pl_init(pl);
       // TODO: self assign ip in local range and auto attempt to connect to others in range
       // net_connect should be called until successful
-      /*in_addr_t iad = htonl(inet_addr("ipaddr_string"));*/
-      /*pl_set_local_sock(pl, &iad, portnum);*/
+      /*
+       *in_addr_t iad = htonl(inet_addr("1.0.0.0"));
+       *printf("%i\n", iad);
+       *pl_set_local_sock(pl, &iad, portnum);
+       */
+
       pl_set_local_sock(pl, NULL, portnum);
       pl->continuous = 1;
       int bound = 1;
