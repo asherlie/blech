@@ -406,6 +406,7 @@ _Bool blech_init(struct peer_list* pl, char* sterm, int portnum){
        *pl_set_local_sock(pl, &iad, portnum);
        */
 
+      // set local socket to inet
       pl_set_local_sock(pl, NULL, portnum);
       pl->continuous = 1;
       int bound = 1;

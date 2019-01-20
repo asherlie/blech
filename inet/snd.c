@@ -124,13 +124,16 @@ int* read_msg_file_share(struct peer_list* pl, int* recp, int* u_fn, int* n_ints
       // we first need to read size of f_list
       // we need to set the last value of f_list to -1 and record its old value as u_fn
       // adtnl
-      read(pl->l_a[peer_no].clnt_num, n_ints, 4);
+      // handling of CASE_DUP
+      int sock = (pl) ? pl->l_a[peer_no].clnt_num : peer_no;
+      read(sock, n_ints, 4);
       // recp
-      read(pl->l_a[peer_no].clnt_num, recp, 4);
+      read(sock, recp, 4);
       // sndr
-      read(pl->l_a[peer_no].clnt_num, fname, 30);
+      read(sock, fname, 30);
       int* ret = malloc(sizeof(int)**n_ints);
-      read(pl->l_a[peer_no].clnt_num, ret, sizeof(int)**n_ints);
+      read(sock, ret, sizeof(int)**n_ints);
+      if(!pl)return NULL;
       *u_fn = ret[*n_ints-1];
       ret[*n_ints-1] = -1;
       --*n_ints;
@@ -139,10 +142,21 @@ int* read_msg_file_share(struct peer_list* pl, int* recp, int* u_fn, int* n_ints
       return ret;
 }
 
+// THIS APPLIES FOR ALL read_msg_* functions 
+/* CASE_DUP
+ * if duplicate_read, peer_list* pl will be NULL and peer_no will store pl->l_a[peer_no].clnt_num
+ * this will alert the read_msg_* variants not to propogate any messages after duplicate reads
+ */
+
 // FILE_ALERT does NOT imply access
 _Bool read_msg_file_alert(struct peer_list* pl, int* recp, int* new_u_fn, int peer_no){
       char sndr[30];
       char* nme = sndr;
+      // handling CASE_DUP
+      if(!pl){
+            read_messages(peer_no, recp, &nme, NULL, new_u_fn, 0);
+            return 0;
+      }
       read_messages(pl->l_a[peer_no].clnt_num, recp, &nme, NULL, new_u_fn, 0);
       struct loc_addr_clnt_num* la_r = find_peer(pl, *recp);
       return prop_msg(la_r, peer_no, pl, FILE_ALERT, -1, 0, NULL, *recp, sndr, *new_u_fn, 0);
@@ -231,6 +245,7 @@ void* read_messages_pth(void* rm_arg){
       int msg_type = -1, cur_msg_no = -1, pre_msg_no = -1;
       int new_u_id;
       int u_fn = -1;
+      _Bool duplicate_read = 0;
       while(rma->pl->l_a[rma->index].continuous){
             #ifdef DEBUG
             int n_reads = 0;
@@ -238,7 +253,12 @@ void* read_messages_pth(void* rm_arg){
             read(rma->pl->l_a[rma->index].clnt_num, &msg_type, 4);
             read(rma->pl->l_a[rma->index].clnt_num, &cur_msg_no, 4);
             // TODO: handle this
-            if(pre_msg_no == cur_msg_no)perror("uhoh");
+            if(cur_msg_no <= pre_msg_no){
+                  puts("cur_msg_no <= pre_msg_no");
+                  perror("uhoh");
+                  // we can't just continue because we need to read more bytes
+                  duplicate_read = 1;
+            }
             #ifdef DEBUG
             fputs("msg type and message number have been read - awaiting more messages ", stdout);
             printf("msg type: %i\n", msg_type);
@@ -257,14 +277,15 @@ void* read_messages_pth(void* rm_arg){
             switch(msg_type){
                   case FILE_ALERT:
                         // new u_fn is stored in new_u_id
-                        read_msg_file_alert(rma->pl, &recp, &new_u_id, rma->index);
+                        read_msg_file_alert((duplicate_read) ? NULL : rma->pl, &recp, &new_u_id, (duplicate_read) ? rma->pl->l_a[rma->index].clnt_num : rma->index);
                         next_ufn = new_u_id+1;
                         break;
                   case FILE_SHARE:
                         /*abs_snd_msg();*/
                         // n_ints in file route is stored in new_u_id for some reason
-                        f_list = read_msg_file_share(rma->pl, &recp, &u_fn, &new_u_id, name, rma->index);
-                        if(recp == rma->pl->u_id){
+                        f_list = read_msg_file_share((duplicate_read) ? NULL : rma->pl, &recp, &u_fn, &new_u_id, name, (duplicate_read) ? rma->pl->l_a[rma->index].clnt_num : rma->index);
+                        // if 
+                        if(!duplicate_read && recp == rma->pl->u_id){
                               fs_add_acc(&rma->pl->file_system, u_fn, strdup(name), f_list);
                               printf("you have been granted access to file \"%s\" with universal file number %i\n", name, u_fn);
                         }
