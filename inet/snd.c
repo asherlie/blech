@@ -182,7 +182,8 @@ char* read_msg_file_chunk(struct peer_list* pl, int* recp, char* fname, int* chu
 }
 
 _Bool read_msg_file_req(struct peer_list* pl, int* recp, char* sndr, int* u_fn, int peer_no){
-      read_messages(pl->l_a[peer_no].clnt_num, recp, &sndr, NULL, u_fn, 0);
+      read_messages((pl) ? pl->l_a[peer_no].clnt_num : peer_no, recp, &sndr, NULL, u_fn, 0);
+      if(!pl)return 0;
       struct loc_addr_clnt_num* la_r = find_peer(pl, *recp);
       /*if(la_r)*/
       return prop_msg(la_r, peer_no, pl, FILE_REQ, -1, 0, NULL, *recp, sndr, *u_fn, 0);
@@ -293,11 +294,12 @@ void* read_messages_pth(void* rm_arg){
                         break;
                   case FILE_REQ:
                         // name refers to name of sender
-                        read_msg_file_req(rma->pl, &recp, name, &u_fn, rma->index);
+                        read_msg_file_req((duplicate_read) ? NULL : rma->pl, &recp, name, &u_fn, (duplicate_read) ? rma->pl->l_a[rma->index].clnt_num : rma->index);
                         /* TODO:
                          * switch over to abs_snd_msg based FCHUNK_PSS handling as to not miss out on messages received between request and fchunk arrival
                          * could create a queue of files we're waiting for
                          */
+                        if(duplicate_read)break;
                         // send data over
                         if(recp == rma->pl->u_id){
                               #ifdef DEBUG
