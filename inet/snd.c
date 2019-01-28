@@ -200,7 +200,9 @@ _Bool read_msg_msg_pass(struct peer_list* pl, int* recp, char* sndr_name, char* 
 
 // PEER_EXIT uses optional int field to send sndr info rather than sndr_name - nvm
 _Bool read_msg_peer_exit(struct peer_list* pl, int* recp, char* sndr_name, int* sndr_u_id, int peer_no){
-      read_messages(pl->l_a[peer_no].clnt_num, recp, &sndr_name, NULL, sndr_u_id, peer_no);
+      // TODO: is the peer_no field being handled correctly?
+      read_messages((pl) ? pl->l_a[peer_no].clnt_num : peer_no, recp, &sndr_name, NULL, sndr_u_id, peer_no);
+      if(!pl)return 0;
       struct loc_addr_clnt_num* la_r = find_peer(pl, *recp);
       return prop_msg(la_r, peer_no, pl, PEER_EXIT, -1, 0, NULL, *recp, sndr_name, *sndr_u_id, 0);
 }
@@ -398,7 +400,10 @@ void* read_messages_pth(void* rm_arg){
                         if(!duplicate_read)printf("%s%s%s: %s\n", (has_peer(rma->pl, name, -1, NULL, NULL, NULL) == 1) ? ANSI_BLU : ANSI_GRE, name, ANSI_NON, buf);
                         break;
                   case PEER_EXIT:
-                        read_msg_peer_exit(rma->pl, &recp, name, &peer_ind, rma->index);
+                        // TODO: does the peer_no field contain incorrect info for read_msg_peer_exit?
+                        read_msg_peer_exit((duplicate_read) ? NULL : rma->pl, &recp, name, &peer_ind, (duplicate_read) ? rma->pl->l_a[rma->index].clnt_num : rma->index);
+                        // THIS SHOULD NEVER OCCUR
+                        if(duplicate_read)return NULL;
                         // peer_ind = u_id
                         /*printf("user %s has disconnected\n", rma->pl->l_a[rma->index].clnt_info[0]);*/
                         printf("user %s has disconnected\n", name);
