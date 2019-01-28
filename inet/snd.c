@@ -192,7 +192,8 @@ _Bool read_msg_file_req(struct peer_list* pl, int* recp, char* sndr, int* u_fn, 
 // these wrappers handle propogation
 // peer_no refers to the rma->index of the caller/peer number of the sender
 _Bool read_msg_msg_pass(struct peer_list* pl, int* recp, char* sndr_name, char* msg, int peer_no){
-      read_messages(pl->l_a[peer_no].clnt_num, recp, &sndr_name, &msg, NULL, 0);
+      read_messages((pl) ? pl->l_a[peer_no].clnt_num : peer_no, recp, &sndr_name, &msg, NULL, 0);
+      if(!pl)return 0;
       struct loc_addr_clnt_num* la_r = find_peer(pl, *recp);
       return prop_msg(la_r, peer_no, pl, MSG_PASS, MSG_SND, 1024, msg, *recp, sndr_name, -1, 0);
 }
@@ -359,7 +360,7 @@ void* read_messages_pth(void* rm_arg){
                         if(!duplicate_read)printf("%s%s%s: %s\n", (has_peer(rma->pl, name, -1, NULL, NULL, NULL) == 1) ? ANSI_BLU : ANSI_GRE, name, ANSI_NON, buf);
                         break;
                   case MSG_PASS:
-                        read_msg_msg_pass(rma->pl, &recp, name, buf, rma->index);
+                        read_msg_msg_pass((duplicate_read) ? NULL : rma->pl, &recp, name, buf, (duplicate_read) ? rma->pl->l_a[rma->index].clnt_num : rma->index);
                         break;
                   case PEER_PASS:
                         /*
