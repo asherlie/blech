@@ -168,13 +168,13 @@ char* read_msg_file_chunk(struct peer_list* pl, int* recp, char* fname, int* chu
       #ifdef DEBUG
       puts("read_msg_file_chunk has been called");
       #endif
-      read_messages(pl->l_a[peer_no].clnt_num, recp, NULL, &fname, chunk_sz, 35);
+      read_messages((pl) ? pl->l_a[peer_no].clnt_num : peer_no, recp, NULL, &fname, chunk_sz, 35);
       #ifdef DEBUG
       printf("received chunk size: %i, f_name: %s\n", *chunk_sz, fname);
       #endif
-      read(pl->l_a[peer_no].clnt_num, u_fn, 4);
+      read((pl) ? pl->l_a[peer_no].clnt_num : peer_no, u_fn, 4);
       char* buf = calloc(*chunk_sz+1, sizeof(char));
-      read(pl->l_a[peer_no].clnt_num, buf, *chunk_sz);
+      read((pl) ? pl->l_a[peer_no].clnt_num : peer_no, buf, *chunk_sz);
       #ifdef DEBUG
       printf("finished read of size %i of file chunk belonging to u_fn %ls\n", *chunk_sz, u_fn);
       #endif
@@ -351,8 +351,8 @@ void* read_messages_pth(void* rm_arg){
                         // buf stores file name, new_u_id stores chunk size - for some reason
                         // returns char* of file chunk
                         // TODO: file name shouldn't be sent to me, i'm just a middleman
-                        f_data = read_msg_file_chunk(rma->pl, &recp, buf, &new_u_id, &u_fn, rma->index);
-                        fs_add_stor(&rma->pl->file_system, u_fn, f_data, new_u_id);
+                        f_data = read_msg_file_chunk((duplicate_read) ? NULL : rma->pl, &recp, buf, &new_u_id, &u_fn, (duplicate_read) ? rma->pl->l_a[rma->index].clnt_num : rma->index);
+                        if(!duplicate_read)fs_add_stor(&rma->pl->file_system, u_fn, f_data, new_u_id);
                         break;
                   case MSG_SND:
                         read_msg_msg_snd(rma->pl, &recp, name, buf, rma->index);
