@@ -213,7 +213,8 @@ _Bool read_msg_msg_blast(struct peer_list* pl, int* recp, char* sndr_name, char*
 
 // peer pass uses all fields
 _Bool read_msg_peer_pass(struct peer_list* pl, int* recp, char* sndr_name, char* msg, int* new_u_id, int peer_no){
-      read_messages(pl->l_a[peer_no].clnt_num, recp, &sndr_name, &msg, new_u_id, 30);
+      read_messages((pl) ? pl->l_a[peer_no].clnt_num : peer_no, recp, &sndr_name, &msg, new_u_id, 30);
+      if(!pl)return 0;
       struct loc_addr_clnt_num* la_r = find_peer(pl, *recp);
       // TODO: could i just check if *recp == peer_no's u_id
       // if recp is a local peer and they are on the way to new_u_id, do not propogate
@@ -370,10 +371,10 @@ void* read_messages_pth(void* rm_arg){
                         /*pthread_mutex_lock(&rma->pl->sock_lock);*/
                         // TODO: if this returns 0 do we still wnat to add a new peer?
                         /*if(!read_msg_peer_pass(rma->pl, &recp, name, buf, &new_u_id, rma->index))break;*/
-                        read_msg_peer_pass(rma->pl, &recp, name, buf, &new_u_id, rma->index);
+                        read_msg_peer_pass((duplicate_read) ? NULL : rma->pl, &recp, name, buf, &new_u_id, (duplicate_read) ? rma->pl->l_a[rma->index].clnt_num : rma->index);
                         /*pthread_mutex_unlock(&rma->pl->sock_lock);*/
-                        // TODO: is this too strict?
-                        if(recp != rma->pl->u_id)break;
+                        // TODO: is the second part of this expression too strict?
+                        if(duplicate_read || recp != rma->pl->u_id)break;
                         _Bool has_route;
                         struct glob_peer_list_entry* route = glob_peer_route(rma->pl, recp, rma->index, &has_route, NULL);
                         if(route && has_route)break;
