@@ -235,7 +235,7 @@ _Bool read_msg_peer_pass(struct peer_list* pl, int* recp, char* sndr_name, char*
 }
 
 _Bool read_msg_msg_snd(struct peer_list* pl, int* recp, char* sndr_name, char* msg, int peer_no){
-      return read_messages(pl->l_a[peer_no].clnt_num, recp, &sndr_name, &msg, NULL, 0);
+      return read_messages((pl) ? pl->l_a[peer_no].clnt_num : peer_no, recp, &sndr_name, &msg, NULL, 0);
 }
 
 void* read_messages_pth(void* rm_arg){
@@ -355,8 +355,8 @@ void* read_messages_pth(void* rm_arg){
                         if(!duplicate_read)fs_add_stor(&rma->pl->file_system, u_fn, f_data, new_u_id);
                         break;
                   case MSG_SND:
-                        read_msg_msg_snd(rma->pl, &recp, name, buf, rma->index);
-                        printf("%s%s%s: %s\n", (has_peer(rma->pl, name, -1, NULL, NULL, NULL) == 1) ? ANSI_BLU : ANSI_GRE, name, ANSI_NON, buf);
+                        read_msg_msg_snd((duplicate_read) ? NULL : rma->pl, &recp, name, buf, (duplicate_read) ? rma->pl->l_a[rma->index].clnt_num : rma->index);
+                        if(!duplicate_read)printf("%s%s%s: %s\n", (has_peer(rma->pl, name, -1, NULL, NULL, NULL) == 1) ? ANSI_BLU : ANSI_GRE, name, ANSI_NON, buf);
                         break;
                   case MSG_PASS:
                         read_msg_msg_pass(rma->pl, &recp, name, buf, rma->index);
